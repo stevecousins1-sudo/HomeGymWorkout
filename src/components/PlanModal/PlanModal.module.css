@@ -1,0 +1,104 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  padding: 0;
+}
+
+.sheet {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 24px 20px 32px;
+  width: 100%;
+  max-width: 680px;
+}
+
+.handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  margin: 0 auto 20px;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancel {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--bg-secondary);
+}
+
+.generate {
+  flex: 2;
+  padding: 12px;
+  background: var(--brand);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+@media (min-width: 640px) {
+  .overlay {
+    align-items: center;
+  }
+
+  .sheet {
+    border-radius: var(--radius-xl);
+    margin: 16px;
+    padding: 28px;
+  }
+
+  .handle {
+    display: none;
+  }
+}

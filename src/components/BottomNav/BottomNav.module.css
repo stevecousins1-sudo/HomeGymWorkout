@@ -1,0 +1,48 @@
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 68px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 16px;
+  color: var(--text-hint);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: color 0.15s;
+  min-width: 60px;
+}
+
+.tab.active {
+  color: var(--brand);
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+}
+
+@media (min-width: 1024px) {
+  .nav {
+    position: sticky;
+    bottom: 0;
+    left: auto;
+    right: auto;
+    width: 100%;
+    border-radius: 0;
+  }
+}

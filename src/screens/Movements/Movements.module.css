@@ -1,0 +1,127 @@
+.screen {
+  padding: 20px 16px 88px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.globalToggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+}
+
+.globalBtn {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.globalBtn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.search {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.pill {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+
+.pill.active {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.unitToggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.unitBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.unitBtn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}

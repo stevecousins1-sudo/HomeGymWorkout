@@ -1,0 +1,232 @@
+.screen {
+  padding: 20px 16px 88px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.statsRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.statChip {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  cursor: pointer;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cardName {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cardDate {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.viewLink {
+  font-size: 13px;
+  color: var(--text-hint);
+}
+
+.cardMeta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.metaItem {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.redoBtn {
+  font-size: 14px;
+  color: var(--brand);
+  font-weight: 500;
+  padding: 6px 0;
+}
+
+/* Detail view */
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand);
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+.detailName {
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.detailDate {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px 14px;
+  text-align: center;
+  flex: 1;
+}
+
+.chipValue {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.chipLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.exCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.exHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.exName {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.exPrescription {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.setBadge {
+  background: var(--brand-light);
+  color: var(--brand-text);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.setRowDetail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.setRowDetail:last-child {
+  border-bottom: none;
+}
+
+.setNumDetail {
+  min-width: 40px;
+  font-size: 13px;
+}
+
+.checkCircle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  margin-left: auto;
+}
+
+.redoBottomBtn {
+  width: 100%;
+  background: var(--brand);
+  color: #fff;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-hint);
+  padding: 40px 0;
+}

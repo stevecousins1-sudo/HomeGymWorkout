@@ -1,0 +1,50 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--brand-light);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+
+.track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: var(--radius-pill);
+  transition: width 1s linear;
+}
+
+.countdown {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-text);
+  min-width: 28px;
+  text-align: right;
+}
+
+.skip {
+  font-size: 13px;
+  color: var(--brand);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.skip:hover {
+  background: var(--brand-light);
+}
