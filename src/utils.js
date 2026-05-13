@@ -51,3 +51,25 @@ export function generateSchedule(plan, startDateStr) {
 export function todayISO() {
   return new Date().toISOString().split('T')[0];
 }
+
+export function convertWeight(value, fromUnit, toUnit) {
+  if (!value || fromUnit === toUnit) return value;
+  const num = parseFloat(value);
+  if (isNaN(num) || num === 0) return value;
+  if (fromUnit === 'lb' && toUnit === 'kg') return String(Math.round(num / 2.2046 * 10) / 10);
+  if (fromUnit === 'kg' && toUnit === 'lb') return String(Math.round(num * 2.2046 * 10) / 10);
+  return value;
+}
+
+const BARBELL_NAMES = [
+  'bench press', 'squat', 'deadlift', 'barbell row', 'ohp', 'overhead press',
+  'romanian', 'rdl', 'front squat', 'power clean', 'power snatch', 'clean',
+  'snatch', 'good morning', 'hip thrust', 'push press', 'back squat',
+  'pause squat', 'box squat', 'nordic', 'bulgarian',
+];
+
+export function getDefaultUnit(movementName, globalUnit) {
+  const lower = movementName.toLowerCase();
+  const isBarbell = BARBELL_NAMES.some(n => lower.includes(n)) || lower.includes('barbell');
+  return isBarbell ? 'kg' : (globalUnit ?? 'lb');
+}

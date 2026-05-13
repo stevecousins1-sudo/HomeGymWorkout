@@ -67,8 +67,15 @@
 }
 
 .exerciseHeader {
-  padding: 12px 14px 8px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
+}
+
+.exerciseTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .exerciseName {
@@ -81,6 +88,28 @@
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
+}
+
+.exUnitToggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.exUnitBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.exUnitActive {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .setRow {
@@ -99,10 +128,22 @@
   background: var(--brand-light);
 }
 
+.setLabelCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 46px;
+}
+
 .setLabel {
   font-size: 13px;
   color: var(--text-secondary);
-  min-width: 40px;
+}
+
+.lastHint {
+  font-size: 11px;
+  color: var(--text-hint);
+  white-space: nowrap;
 }
 
 .weightInput, .repsInput {
@@ -116,11 +157,17 @@
 }
 
 .weightInput {
-  width: 72px;
+  width: 64px;
 }
 
 .repsInput {
   width: 52px;
+}
+
+.unitLabel {
+  font-size: 12px;
+  color: var(--text-hint);
+  min-width: 16px;
 }
 
 .times {
