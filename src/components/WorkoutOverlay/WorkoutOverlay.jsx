@@ -38,7 +38,7 @@ function getLastSets(exName, history) {
 }
 
 export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onClose }) {
-  const { addHistory, markScheduleEntry, activePlan, unitPrefs, globalUnit, setUnitPref, history } = useApp();
+  const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref, history } = useApp();
   const navigate = useNavigate();
   const elapsed = useWorkoutTimer(true);
 
@@ -48,7 +48,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [units, setUnits] = useState(() => {
     const list = exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
     return list.reduce((acc, ex) => {
-      acc[ex.name] = unitPrefs[ex.name] ?? getDefaultUnit(ex.name, globalUnit);
+      acc[ex.name] = unitPrefs[ex.name] ?? getDefaultUnit(ex.name);
       return acc;
     }, {});
   });

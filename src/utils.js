@@ -61,15 +61,18 @@ export function convertWeight(value, fromUnit, toUnit) {
   return value;
 }
 
-const BARBELL_NAMES = [
-  'bench press', 'squat', 'deadlift', 'barbell row', 'ohp', 'overhead press',
-  'romanian', 'rdl', 'front squat', 'power clean', 'power snatch', 'clean',
-  'snatch', 'good morning', 'hip thrust', 'push press', 'back squat',
-  'pause squat', 'box squat', 'nordic', 'bulgarian',
-];
+import { MOVEMENTS } from './data/movements';
 
-export function getDefaultUnit(movementName, globalUnit) {
+const _movementMap = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
+
+export function getDefaultUnit(movementName) {
+  const m = _movementMap.get(movementName.toLowerCase());
+  if (m) return m.equipment.includes('Barbell') ? 'kg' : 'lb';
+  // Fallback for exercises not in the library (e.g. from exercise map strings)
   const lower = movementName.toLowerCase();
-  const isBarbell = BARBELL_NAMES.some(n => lower.includes(n)) || lower.includes('barbell');
-  return isBarbell ? 'kg' : (globalUnit ?? 'lb');
+  const isBarbell = lower.includes('barbell') || lower.includes('deadlift') ||
+    lower.includes('squat') || lower.includes('bench') || lower.includes('ohp') ||
+    lower.includes('press') || lower.includes('romanian') || lower.includes('rdl') ||
+    lower.includes('clean') || lower.includes('snatch') || lower.includes('row');
+  return isBarbell ? 'kg' : 'lb';
 }
