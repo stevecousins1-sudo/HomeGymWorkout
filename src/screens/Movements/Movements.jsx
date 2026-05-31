@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { MOVEMENTS } from '../../data/movements';
 import styles from './Movements.module.css';
 
-const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms'];
+const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 function UnitToggle({ name, unit, onToggle }) {
   return (

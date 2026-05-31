@@ -3,7 +3,7 @@ import { MOVEMENTS } from '../../data/movements';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import styles from './Workout.module.css';
 
-const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms'];
+const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 export default function Workout() {
   const [filter, setFilter] = useState('All');
