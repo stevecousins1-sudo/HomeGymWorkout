@@ -20,8 +20,12 @@ export default function Auth() {
       }
       await pb.collection('users').authWithPassword(email, password);
     } catch (err) {
-      const msg = err?.response?.message || err?.message || 'Something went wrong.';
-      setError(msg);
+      console.error('[Auth] error:', err);
+      let msg = 'Something went wrong.';
+      if (err?.status === 0) msg = 'Cannot reach the server — check your connection.';
+      else if (err?.response?.message) msg = err.response.message;
+      else if (err?.message) msg = err.message;
+      setError(`${msg} (status: ${err?.status ?? 'network'})`);
     } finally {
       setSubmitting(false);
     }
