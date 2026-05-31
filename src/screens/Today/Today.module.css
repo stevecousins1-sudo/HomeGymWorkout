@@ -23,6 +23,23 @@
   margin-top: 2px;
 }
 
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.signOutBtn {
+  font-size: 13px;
+  color: var(--text-hint);
+  padding: 2px 0;
+}
+
+.signOutBtn:hover {
+  color: var(--red);
+}
+
 .progress {
   font-size: 13px;
   color: var(--text-secondary);

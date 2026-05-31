@@ -1,68 +1,195 @@
-import { createContext, useContext, useCallback } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-
-const SEED_HISTORY = [
-  { id:1, date:'2026-05-10', name:'Push Day A',  dayName:'Push A',           duration:3120, volume:12840, sets:17 },
-  { id:2, date:'2026-05-08', name:'Leg Day',     dayName:'Legs',             duration:3660, volume:18560, sets:20 },
-  { id:3, date:'2026-05-07', name:'Pull Day A',  dayName:'Pull A',           duration:2880, volume:14320, sets:16 },
-  { id:4, date:'2026-05-05', name:'Push Day B',  dayName:'Chest & Triceps',  duration:3300, volume:13100, sets:18 },
-  { id:5, date:'2026-05-04', name:'Leg Day',     dayName:'Legs',             duration:3480, volume:17890, sets:19 },
-];
-
-const DEFAULT_STATE = {
-  activePlan: null,
-  history: SEED_HISTORY,
-  unitPrefs: {},
-  globalUnit: 'lb',
-};
+import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
+import pb from '../lib/pb';
 
 const AppContext = createContext(null);
 
+const SEED_HISTORY = [
+  { date:'2026-05-10', name:'Push Day A',  dayName:'Push A',          duration:3120, volume:12840, sets:17 },
+  { date:'2026-05-08', name:'Leg Day',     dayName:'Legs',            duration:3660, volume:18560, sets:20 },
+  { date:'2026-05-07', name:'Pull Day A',  dayName:'Pull A',          duration:2880, volume:14320, sets:16 },
+  { date:'2026-05-05', name:'Push Day B',  dayName:'Chest & Triceps', duration:3300, volume:13100, sets:18 },
+  { date:'2026-05-04', name:'Leg Day',     dayName:'Legs',            duration:3480, volume:17890, sets:19 },
+];
+
+function recordToEntry(r) {
+  return {
+    id: r.id,
+    date: r.entry_date,
+    name: r.name,
+    dayName: r.day_name,
+    duration: r.duration,
+    volume: r.volume,
+    sets: r.sets,
+    exercises: r.exercises || [],
+  };
+}
+
 export function AppProvider({ children }) {
-  const [state, setState] = useLocalStorage('workout-app-v1', DEFAULT_STATE);
+  const [user, setUser] = useState(() => pb.authStore.model);
+  const [loading, setLoading] = useState(true);
+  const [activePlan, setActivePlanState] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [unitPrefs, setUnitPrefsState] = useState({});
+  const [globalUnit, setGlobalUnitState] = useState('lb');
+
+  const settingsIdRef = useRef(null);
+  const unitPrefsRef = useRef({});
+  useEffect(() => { unitPrefsRef.current = unitPrefs; }, [unitPrefs]);
+
+  useEffect(() => {
+    const unsub = pb.authStore.onChange((_, model) => {
+      setUser(model);
+      if (!model) {
+        setLoading(false);
+        setHistory([]);
+        setActivePlanState(null);
+        setUnitPrefsState({});
+        setGlobalUnitState('lb');
+        settingsIdRef.current = null;
+      }
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!pb.authStore.isValid) {
+      setLoading(false);
+      return;
+    }
+    loadUserData();
+  }, [user?.id]);
+
+  async function loadUserData() {
+    setLoading(true);
+    try {
+      const [histRes, settingsRes] = await Promise.allSettled([
+        pb.collection('history').getFullList({ sort: '-entry_date,-created' }),
+        pb.collection('user_settings').getFirstListItem(''),
+      ]);
+
+      if (histRes.status === 'fulfilled') {
+        setHistory(histRes.value.map(recordToEntry));
+      }
+
+      if (settingsRes.status === 'fulfilled') {
+        const s = settingsRes.value;
+        settingsIdRef.current = s.id;
+        setActivePlanState(s.active_plan || null);
+        setUnitPrefsState(s.unit_prefs || {});
+        setGlobalUnitState(s.global_unit || 'lb');
+      } else {
+        // First login — create settings and seed history
+        const newSettings = await pb.collection('user_settings').create({
+          user: pb.authStore.model.id,
+          active_plan: null,
+          unit_prefs: {},
+          global_unit: 'lb',
+        });
+        settingsIdRef.current = newSettings.id;
+
+        for (const entry of SEED_HISTORY) {
+          await pb.collection('history').create({
+            user: pb.authStore.model.id,
+            entry_date: entry.date,
+            name: entry.name,
+            day_name: entry.dayName,
+            duration: entry.duration,
+            volume: entry.volume,
+            sets: entry.sets,
+            exercises: [],
+          });
+        }
+        const seeded = await pb.collection('history').getFullList({ sort: '-entry_date' });
+        setHistory(seeded.map(recordToEntry));
+      }
+    } catch (e) {
+      console.error('Failed to load user data:', e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function patchSettings(patch) {
+    if (!settingsIdRef.current) return;
+    try {
+      await pb.collection('user_settings').update(settingsIdRef.current, patch);
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+    }
+  }
 
   const setActivePlan = useCallback((plan) => {
-    setState(prev => ({ ...prev, activePlan: plan }));
-  }, [setState]);
-
-  const addHistory = useCallback((entry) => {
-    setState(prev => ({ ...prev, history: [entry, ...prev.history] }));
-  }, [setState]);
-
-  const setUnitPref = useCallback((movementName, unit) => {
-    setState(prev => ({
-      ...prev,
-      unitPrefs: { ...prev.unitPrefs, [movementName]: unit },
-    }));
-  }, [setState]);
-
-  const setGlobalUnit = useCallback((unit) => {
-    setState(prev => ({ ...prev, globalUnit: unit }));
-  }, [setState]);
-
-  const markScheduleEntry = useCallback((date, field, value) => {
-    setState(prev => {
-      if (!prev.activePlan) return prev;
-      const schedule = prev.activePlan.schedule.map(entry =>
-        entry.date === date ? { ...entry, [field]: value } : entry
-      );
-      return { ...prev, activePlan: { ...prev.activePlan, schedule } };
-    });
-  }, [setState]);
+    setActivePlanState(plan);
+    patchSettings({ active_plan: plan });
+  }, []);
 
   const cancelPlan = useCallback(() => {
-    setState(prev => ({ ...prev, activePlan: null }));
-  }, [setState]);
+    setActivePlanState(null);
+    patchSettings({ active_plan: null });
+  }, []);
+
+  const addHistory = useCallback(async (entry) => {
+    const tempId = `temp_${Date.now()}`;
+    setHistory(prev => [{ ...entry, id: tempId }, ...prev]);
+    try {
+      const record = await pb.collection('history').create({
+        user: pb.authStore.model.id,
+        entry_date: entry.date,
+        name: entry.name,
+        day_name: entry.dayName,
+        duration: entry.duration,
+        volume: entry.volume,
+        sets: entry.sets,
+        exercises: entry.exercises || [],
+      });
+      setHistory(prev => prev.map(h => h.id === tempId ? recordToEntry(record) : h));
+    } catch (e) {
+      console.error('Failed to save workout:', e);
+    }
+  }, []);
+
+  const setUnitPref = useCallback((movementName, unit) => {
+    const newPrefs = { ...unitPrefsRef.current, [movementName]: unit };
+    setUnitPrefsState(newPrefs);
+    patchSettings({ unit_prefs: newPrefs });
+  }, []);
+
+  const setGlobalUnit = useCallback((unit) => {
+    setGlobalUnitState(unit);
+    patchSettings({ global_unit: unit });
+  }, []);
+
+  const markScheduleEntry = useCallback((date, field, value) => {
+    setActivePlanState(prev => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        schedule: prev.schedule.map(e => e.date === date ? { ...e, [field]: value } : e),
+      };
+      patchSettings({ active_plan: updated });
+      return updated;
+    });
+  }, []);
+
+  const logout = useCallback(() => {
+    pb.authStore.clear();
+  }, []);
 
   return (
     <AppContext.Provider value={{
-      ...state,
+      user,
+      loading,
+      activePlan,
+      history,
+      unitPrefs,
+      globalUnit,
       setActivePlan,
+      cancelPlan,
       addHistory,
       setUnitPref,
       setGlobalUnit,
       markScheduleEntry,
-      cancelPlan,
+      logout,
     }}>
       {children}
     </AppContext.Provider>

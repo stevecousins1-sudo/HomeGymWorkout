@@ -13,7 +13,7 @@ const QUICK_STARTS = [
 ];
 
 export default function Today() {
-  const { activePlan, markScheduleEntry } = useApp();
+  const { activePlan, markScheduleEntry, user, logout } = useApp();
   const [overlay, setOverlay] = useState(null);
   const today = todayISO();
 
@@ -41,12 +41,17 @@ export default function Today() {
             <div className={styles.greeting}>{getGreeting()}</div>
             <div className={styles.date}>{formatDate(today)}</div>
           </div>
-          {activePlan && (
-            <div className={styles.progress}>
-              <div>{activePlan.planName}</div>
-              <div>{doneCount}/{totalCount} sessions</div>
-            </div>
-          )}
+          <div className={styles.rightCol}>
+            {activePlan && (
+              <div className={styles.progress}>
+                <div>{activePlan.planName}</div>
+                <div>{doneCount}/{totalCount} sessions</div>
+              </div>
+            )}
+            <button className={styles.signOutBtn} onClick={logout} title={user?.email}>
+              Sign out
+            </button>
+          </div>
         </div>
 
         {!activePlan && (
