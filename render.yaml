@@ -17,6 +17,7 @@ services:
     env: docker
     dockerfilePath: ./pocketbase/Dockerfile
     dockerContext: ./pocketbase
+    healthCheckPath: /api/health
     disk:
       name: pb-data
       mountPath: /pb/pb_data
