@@ -15,6 +15,14 @@ function parseSetCount(prescription) {
   return match ? parseInt(match[1], 10) : 3;
 }
 
+// Convert a history entry's exercises array back to "Name — Nx" strings for WorkoutOverlay
+function entryToExerciseStrings(entry) {
+  if (entry.exercises?.length > 0) {
+    return entry.exercises.map(ex => `${ex.name} — ${ex.sets.length}×`);
+  }
+  return null;
+}
+
 export default function History() {
   const { history } = useApp();
   const [detail, setDetail] = useState(null);
@@ -27,12 +35,18 @@ export default function History() {
     : 0;
 
   function startRedo(entry) {
-    setOverlay({ name: entry.name, dayName: entry.dayName || entry.name });
+    const exercises = entryToExerciseStrings(entry);
+    setOverlay({ name: entry.name, dayName: entry.dayName || entry.name, exercises });
   }
 
   if (detail) {
-    const dayName = detail.dayName || detail.name;
-    const exercises = getExercisesForDay(dayName);
+    const hasExerciseData = detail.exercises?.length > 0;
+
+    // Fall back to plan template for old entries without exercise data
+    const planExercises = hasExerciseData
+      ? null
+      : getExercisesForDay(detail.dayName || detail.name);
+
     return (
       <>
         <div className={styles.screen}>
@@ -57,28 +71,50 @@ export default function History() {
 
           <div className={styles.sectionTitle}>MOVEMENTS</div>
 
-          {exercises.map((str, i) => {
-            const { name, prescription } = parseExercise(str);
-            const setCount = parseSetCount(prescription);
-            return (
-              <div key={i} className={styles.exCard}>
-                <div className={styles.exHeader}>
-                  <div>
-                    <div className={styles.exName}>{name}</div>
-                    {prescription && <div className={styles.exPrescription}>{prescription}</div>}
+          {hasExerciseData
+            ? detail.exercises.map((ex, i) => {
+                const doneSets = ex.sets.filter(s => s.done);
+                return (
+                  <div key={i} className={styles.exCard}>
+                    <div className={styles.exHeader}>
+                      <div className={styles.exName}>{ex.name}</div>
+                      <span className={styles.setBadge}>{doneSets.length}/{ex.sets.length} sets</span>
+                    </div>
+                    {ex.sets.map((s, si) => (
+                      <div key={si} className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                        <span className={styles.setNumDetail}>Set {si + 1}</span>
+                        <span className={styles.setData}>
+                          {s.weight || '—'} {ex.unit} × {s.reps || '—'} reps
+                        </span>
+                        <div className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`} />
+                      </div>
+                    ))}
                   </div>
-                  <span className={styles.setBadge}>{setCount} sets</span>
-                </div>
-                {Array.from({ length: setCount }).map((_, si) => (
-                  <div key={si} className={styles.setRowDetail}>
-                    <span className={styles.setNumDetail}>Set {si + 1}</span>
-                    <span>— lb × — reps</span>
-                    <div className={styles.checkCircle} />
+                );
+              })
+            : planExercises.map((str, i) => {
+                const { name, prescription } = parseExercise(str);
+                const setCount = parseSetCount(prescription);
+                return (
+                  <div key={i} className={styles.exCard}>
+                    <div className={styles.exHeader}>
+                      <div>
+                        <div className={styles.exName}>{name}</div>
+                        {prescription && <div className={styles.exPrescription}>{prescription}</div>}
+                      </div>
+                      <span className={styles.setBadge}>{setCount} sets</span>
+                    </div>
+                    {Array.from({ length: setCount }).map((_, si) => (
+                      <div key={si} className={styles.setRowDetail}>
+                        <span className={styles.setNumDetail}>Set {si + 1}</span>
+                        <span className={styles.setData}>— × —</span>
+                        <div className={styles.checkCircle} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            );
-          })}
+                );
+              })
+          }
 
           <button className={styles.redoBottomBtn} onClick={() => startRedo(detail)}>
             ↺ Redo this workout
@@ -89,6 +125,7 @@ export default function History() {
           <WorkoutOverlay
             workoutName={overlay.name}
             dayName={overlay.dayName}
+            exercises={overlay.exercises ?? undefined}
             onClose={() => setOverlay(null)}
           />
         )}
@@ -150,6 +187,7 @@ export default function History() {
         <WorkoutOverlay
           workoutName={overlay.name}
           dayName={overlay.dayName}
+          exercises={overlay.exercises ?? undefined}
           onClose={() => setOverlay(null)}
         />
       )}

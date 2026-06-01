@@ -5,13 +5,16 @@ import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
-import { formatTimer, todayISO, convertWeight, getDefaultUnit } from '../../utils';
+import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
+import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
 
 const REST_DEFAULT = 90;
 const REST_STEP    = 15;
 const REST_MIN     = 15;
 const REST_MAX     = 300;
+
+const BUILD_LABEL = getBuildLabel();
 
 const _movMap = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
 function getMovement(name) {
@@ -48,6 +51,13 @@ function getLastSets(exName, history) {
   return null;
 }
 
+// Returns last N history entries that contain a given exercise
+function getExerciseHistory(exName, history, limit = 4) {
+  return history
+    .filter(h => h.exercises?.some(e => e.name === exName))
+    .slice(0, limit);
+}
+
 export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref, restPrefs, setRestPref, history } = useApp();
   const navigate = useNavigate();
@@ -68,9 +78,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       return acc;
     }, {})
   );
-  const [restVisible, setRestVisible]           = useState(false);
+  const [restVisible, setRestVisible]               = useState(false);
   const [activeRestDuration, setActiveRestDuration] = useState(REST_DEFAULT);
-  const [swapIdx, setSwapIdx]                   = useState(null);
+  const [swapIdx, setSwapIdx]                       = useState(null);
+  const [historyOpen, setHistoryOpen]               = useState(new Set());
 
   const handleDismissRest = useCallback(() => setRestVisible(false), []);
 
@@ -91,6 +102,15 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const next = Math.max(REST_MIN, Math.min(REST_MAX, current + delta));
     setRestDurations(prev => ({ ...prev, [exName]: next }));
     setRestPref(exName, next);
+  }
+
+  function toggleHistoryPanel(exName) {
+    setHistoryOpen(prev => {
+      const next = new Set(prev);
+      if (next.has(exName)) next.delete(exName);
+      else next.add(exName);
+      return next;
+    });
   }
 
   function updateSet(exIdx, setIdx, field, value) {
@@ -186,6 +206,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         <div className={styles.centre}>
           <div className={styles.workoutName}>{workoutName}</div>
           <div className={styles.timer}>{formatTimer(elapsed)}</div>
+          <div className={styles.buildLabel}>{BUILD_LABEL}</div>
         </div>
         <button className={styles.finishBtn} onClick={handleFinish}>Finish</button>
       </div>
@@ -196,9 +217,11 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
       <div className={styles.scrollArea}>
         {exercises.map((ex, exIdx) => {
-          const unit    = units[ex.name];
-          const restDur = restDurations[ex.name] ?? REST_DEFAULT;
+          const unit     = units[ex.name];
+          const restDur  = restDurations[ex.name] ?? REST_DEFAULT;
           const lastData = getLastSets(ex.name, history);
+          const exHistory = getExerciseHistory(ex.name, history);
+          const showHistory = historyOpen.has(ex.name);
 
           return (
             <div key={exIdx} className={styles.exerciseCard}>
@@ -237,11 +260,50 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                       disabled={restDur >= REST_MAX}
                     >+</button>
                   </div>
-                  <button className={styles.swapBtn} onClick={() => setSwapIdx(exIdx)}>
-                    Swap ↕
-                  </button>
+                  <div className={styles.actionBtns}>
+                    <button
+                      className={`${styles.historyBtn}${showHistory ? ' ' + styles.historyBtnActive : ''}`}
+                      onClick={() => toggleHistoryPanel(ex.name)}
+                    >
+                      📈 {showHistory ? 'Hide' : 'History'}
+                    </button>
+                    <button className={styles.swapBtn} onClick={() => setSwapIdx(exIdx)}>
+                      Swap ↕
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Lift history panel */}
+              {showHistory && (
+                <div className={styles.historyPanel}>
+                  <div className={styles.historyPanelTitle}>PREVIOUS SESSIONS</div>
+                  {exHistory.length === 0
+                    ? <div className={styles.historyEmpty}>No previous sessions recorded</div>
+                    : exHistory.map((session, si) => {
+                        const sessionEx = session.exercises.find(e => e.name === ex.name);
+                        const sessionUnit = sessionEx?.unit || 'lb';
+                        const doneSets = sessionEx?.sets?.filter(s => s.done) ?? [];
+                        return (
+                          <div key={si} className={styles.historySession}>
+                            <div className={styles.historyDate}>{formatDate(session.date)}</div>
+                            {doneSets.length === 0
+                              ? <div className={styles.historySetRow}>No sets recorded</div>
+                              : doneSets.map((s, setI) => (
+                                  <div key={setI} className={styles.historySetRow}>
+                                    <span className={styles.historySetNum}>Set {setI + 1}</span>
+                                    <span className={styles.historySetData}>
+                                      {s.weight || '—'} {sessionUnit} × {s.reps || '—'} reps
+                                    </span>
+                                  </div>
+                                ))
+                            }
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              )}
 
               {ex.sets.map((set, setIdx) => {
                 const last  = lastData?.sets?.[setIdx];

@@ -3,14 +3,29 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 68px;
   background: var(--bg-primary);
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: center;
-  justify-content: space-around;
+  flex-direction: column;
   z-index: 50;
   padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.buildStrip {
+  text-align: center;
+  font-size: 9px;
+  color: var(--text-hint);
+  padding: 4px 0 2px;
+  letter-spacing: 0.2px;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.tabs {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
 }
 
 .tab {

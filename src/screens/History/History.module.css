@@ -200,9 +200,17 @@
   border-bottom: none;
 }
 
+.setDone {
+  background: var(--brand-light);
+}
+
 .setNumDetail {
   min-width: 40px;
   font-size: 13px;
+}
+
+.setData {
+  flex: 1;
 }
 
 .checkCircle {
@@ -211,6 +219,12 @@
   border-radius: 50%;
   border: 2px solid var(--border-strong);
   margin-left: auto;
+  flex-shrink: 0;
+}
+
+.checkDone {
+  background: var(--brand);
+  border-color: var(--brand);
 }
 
 .redoBottomBtn {

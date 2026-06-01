@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { getBuildLabel } from '../../lib/version';
 import styles from './BottomNav.module.css';
 
 const tabs = [
@@ -29,20 +30,25 @@ const tabs = [
   )},
 ];
 
+const BUILD_LABEL = getBuildLabel();
+
 export default function BottomNav() {
   return (
     <nav className={styles.nav}>
-      {tabs.map(tab => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.to === '/'}
-          className={({ isActive }) => `${styles.tab}${isActive ? ' ' + styles.active : ''}`}
-        >
-          <span className={styles.icon}>{tab.icon}</span>
-          {tab.label}
-        </NavLink>
-      ))}
+      <div className={styles.buildStrip}>{BUILD_LABEL}</div>
+      <div className={styles.tabs}>
+        {tabs.map(tab => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === '/'}
+            className={({ isActive }) => `${styles.tab}${isActive ? ' ' + styles.active : ''}`}
+          >
+            <span className={styles.icon}>{tab.icon}</span>
+            {tab.label}
+          </NavLink>
+        ))}
+      </div>
     </nav>
   );
 }

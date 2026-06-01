@@ -42,6 +42,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.buildLabel {
+  font-size: 9px;
+  color: var(--text-hint);
+  margin-top: 1px;
+  letter-spacing: 0.2px;
+}
+
 .finishBtn {
   background: var(--brand);
   color: #fff;
@@ -246,10 +253,81 @@
   font-variant-numeric: tabular-nums;
 }
 
+.actionBtns {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.historyBtn {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.historyBtnActive {
+  color: var(--brand);
+}
+
 .swapBtn {
   font-size: 13px;
   color: var(--brand);
   font-weight: 500;
+  padding: 4px 0;
+}
+
+/* ── Lift history panel ────────────────────────────────────── */
+.historyPanel {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.historyPanelTitle {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-hint);
+  margin-bottom: 8px;
+}
+
+.historySession {
+  margin-bottom: 10px;
+}
+
+.historySession:last-child {
+  margin-bottom: 0;
+}
+
+.historyDate {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.historySetRow {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.historySetNum {
+  min-width: 40px;
+  color: var(--text-hint);
+  font-size: 12px;
+}
+
+.historySetData {
+  color: var(--text-primary);
+}
+
+.historyEmpty {
+  font-size: 13px;
+  color: var(--text-hint);
   padding: 4px 0;
 }
 
