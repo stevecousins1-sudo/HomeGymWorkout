@@ -77,3 +77,46 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* ── Custom workout builder card ─────────────────────────── */
+.buildCustomBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--brand);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  text-align: left;
+  color: #fff;
+}
+
+.buildCustomIcon {
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.buildCustomText {
+  flex: 1;
+  min-width: 0;
+}
+
+.buildCustomTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.buildCustomSub {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.buildCustomArrow {
+  font-size: 18px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}

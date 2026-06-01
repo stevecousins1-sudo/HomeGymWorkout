@@ -122,7 +122,7 @@
 .setRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
 }
@@ -157,18 +157,34 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  padding: 6px 8px;
+  padding: 6px 4px;
   font-size: 14px;
   color: var(--text-primary);
   text-align: center;
 }
 
 .weightInput {
-  width: 64px;
+  width: 56px;
 }
 
 .repsInput {
-  width: 52px;
+  width: 40px;
+}
+
+.repAdj {
+  width: 26px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .unitLabel {

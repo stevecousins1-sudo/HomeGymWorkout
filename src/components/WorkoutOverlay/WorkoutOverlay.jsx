@@ -121,6 +121,22 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     ));
   }
 
+  function adjustReps(exIdx, setIdx, delta) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei === exIdx
+        ? {
+            ...ex,
+            sets: ex.sets.map((s, si) => {
+              if (si !== setIdx) return s;
+              const current = parseInt(s.reps, 10) || 0;
+              const next = Math.max(1, current + delta);
+              return { ...s, reps: String(next) };
+            }),
+          }
+        : ex
+    ));
+  }
+
   function toggleDone(exIdx, setIdx) {
     setExercises(prev => {
       const updated = prev.map((ex, ei) =>
@@ -328,6 +344,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                     />
                     <span className={styles.unitLabel}>{unit}</span>
                     <span className={styles.times}>×</span>
+                    <button
+                      className={styles.repAdj}
+                      onClick={() => adjustReps(exIdx, setIdx, -1)}
+                    >−</button>
                     <input
                       className={styles.repsInput}
                       type="number"
@@ -336,6 +356,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                       value={set.reps}
                       onChange={e => updateSet(exIdx, setIdx, 'reps', e.target.value)}
                     />
+                    <button
+                      className={styles.repAdj}
+                      onClick={() => adjustReps(exIdx, setIdx, 1)}
+                    >+</button>
                     <button
                       className={`${styles.completeBtn}${set.done ? ' ' + styles.done : ''}`}
                       onClick={() => toggleDone(exIdx, setIdx)}
