@@ -57,9 +57,23 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (!pb.authStore.isValid) {
+      // Stale model in localStorage but token is expired — clear it so the
+      // Auth screen is shown rather than a broken main-app state.
+      pb.authStore.clear();
       setLoading(false);
       return;
     }
+    // Silently renew the auth token on every app open.  This resets the
+    // expiry clock so users are never prompted to re-login as long as they
+    // open the app within the token lifetime.
+    pb.collection('users').authRefresh().catch(err => {
+      // Only force re-login on definitive auth failures (not network errors)
+      // so an offline start doesn't unexpectedly log the user out.
+      if (err?.status === 401 || err?.status === 403) {
+        pb.authStore.clear();
+        setLoading(false);
+      }
+    });
     loadUserData();
   }, [user?.id]);
 
