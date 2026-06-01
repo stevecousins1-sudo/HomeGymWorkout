@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MOVEMENTS } from '../../data/movements';
+import { buildWorkoutFromMovement, workoutNameForMovement } from '../../data/workoutBuilder';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import styles from './Workout.module.css';
 
@@ -10,6 +11,14 @@ export default function Workout() {
   const [overlay, setOverlay] = useState(null);
 
   const visible = filter === 'All' ? MOVEMENTS : MOVEMENTS.filter(m => m.category === filter);
+
+  function startWorkout(movement) {
+    setOverlay({
+      name: workoutNameForMovement(movement),
+      dayName: workoutNameForMovement(movement),
+      exercises: buildWorkoutFromMovement(movement),
+    });
+  }
 
   return (
     <>
@@ -36,7 +45,7 @@ export default function Workout() {
               </div>
               <button
                 className={styles.startBtn}
-                onClick={() => setOverlay({ name: m.name, dayName: m.name })}
+                onClick={() => startWorkout(m)}
               >
                 Start
               </button>
@@ -49,7 +58,7 @@ export default function Workout() {
         <WorkoutOverlay
           workoutName={overlay.name}
           dayName={overlay.dayName}
-          exercises={[`${overlay.name} — 3×10`]}
+          exercises={overlay.exercises}
           onClose={() => setOverlay(null)}
         />
       )}
