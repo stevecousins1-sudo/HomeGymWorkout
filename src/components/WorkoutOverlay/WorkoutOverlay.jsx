@@ -3,9 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
 import { getExercisesForDay } from '../../data/exercises';
+import { MOVEMENTS } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
 import { formatTimer, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import styles from './WorkoutOverlay.module.css';
+
+const REST_DEFAULT = 90;
+const REST_STEP    = 15;
+const REST_MIN     = 15;
+const REST_MAX     = 300;
+
+const _movMap = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
+function getMovement(name) {
+  return _movMap.get(name.toLowerCase()) ?? null;
+}
 
 function parseExercise(str) {
   const parts = str.split(' — ');
@@ -38,21 +49,28 @@ function getLastSets(exName, history) {
 }
 
 export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onClose }) {
-  const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref, history } = useApp();
+  const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref, restPrefs, setRestPref, history } = useApp();
   const navigate = useNavigate();
   const elapsed = useWorkoutTimer(true);
 
-  const [exercises, setExercises] = useState(() =>
-    exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName)
-  );
-  const [units, setUnits] = useState(() => {
-    const list = exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
-    return list.reduce((acc, ex) => {
+  const initList = () => exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
+
+  const [exercises, setExercises] = useState(initList);
+  const [units, setUnits] = useState(() =>
+    initList().reduce((acc, ex) => {
       acc[ex.name] = unitPrefs[ex.name] ?? getDefaultUnit(ex.name);
       return acc;
-    }, {});
-  });
-  const [restVisible, setRestVisible] = useState(false);
+    }, {})
+  );
+  const [restDurations, setRestDurations] = useState(() =>
+    initList().reduce((acc, ex) => {
+      acc[ex.name] = restPrefs[ex.name] ?? REST_DEFAULT;
+      return acc;
+    }, {})
+  );
+  const [restVisible, setRestVisible]           = useState(false);
+  const [activeRestDuration, setActiveRestDuration] = useState(REST_DEFAULT);
+  const [swapIdx, setSwapIdx]                   = useState(null);
 
   const handleDismissRest = useCallback(() => setRestVisible(false), []);
 
@@ -66,6 +84,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     ));
     setUnits(prev => ({ ...prev, [exName]: newUnit }));
     setUnitPref(exName, newUnit);
+  }
+
+  function adjustRest(exName, delta) {
+    const current = restDurations[exName] ?? REST_DEFAULT;
+    const next = Math.max(REST_MIN, Math.min(REST_MAX, current + delta));
+    setRestDurations(prev => ({ ...prev, [exName]: next }));
+    setRestPref(exName, next);
   }
 
   function updateSet(exIdx, setIdx, field, value) {
@@ -84,9 +109,26 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           : ex
       );
       const wasNotDone = !prev[exIdx].sets[setIdx].done;
-      if (wasNotDone) setRestVisible(true);
+      if (wasNotDone) {
+        const dur = restDurations[prev[exIdx].name] ?? REST_DEFAULT;
+        setActiveRestDuration(dur);
+        setRestVisible(true);
+      }
       return updated;
     });
+  }
+
+  function swapExercise(newMovement) {
+    if (swapIdx === null) return;
+    const old = exercises[swapIdx];
+    setExercises(prev => prev.map((ex, i) =>
+      i === swapIdx
+        ? { name: newMovement.name, prescription: old.prescription, sets: old.sets.map(() => ({ weight: '', reps: '', done: false })) }
+        : ex
+    ));
+    setUnits(prev => ({ ...prev, [newMovement.name]: unitPrefs[newMovement.name] ?? getDefaultUnit(newMovement.name) }));
+    setRestDurations(prev => ({ ...prev, [newMovement.name]: restPrefs[newMovement.name] ?? REST_DEFAULT }));
+    setSwapIdx(null);
   }
 
   function handleFinish() {
@@ -104,7 +146,6 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     }, 0);
 
     const today = todayISO();
-
     if (activePlan) {
       const entry = activePlan.schedule.find(e => e.date === today && !e.skipped);
       if (entry) markScheduleEntry(today, 'done', true);
@@ -130,10 +171,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   }
 
   function handleCancel() {
-    if (window.confirm('Cancel workout? Progress will be lost.')) {
-      onClose();
-    }
+    if (window.confirm('Cancel workout? Progress will be lost.')) onClose();
   }
+
+  const swapCategory = swapIdx !== null ? getMovement(exercises[swapIdx]?.name)?.category : null;
+  const swapOptions  = swapCategory
+    ? MOVEMENTS.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
+    : [];
 
   return (
     <div className={styles.overlay}>
@@ -146,11 +190,14 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         <button className={styles.finishBtn} onClick={handleFinish}>Finish</button>
       </div>
 
-      {restVisible && <RestTimer onDone={handleDismissRest} />}
+      {restVisible && (
+        <RestTimer duration={activeRestDuration} onDone={handleDismissRest} />
+      )}
 
       <div className={styles.scrollArea}>
         {exercises.map((ex, exIdx) => {
-          const unit = units[ex.name];
+          const unit    = units[ex.name];
+          const restDur = restDurations[ex.name] ?? REST_DEFAULT;
           const lastData = getLastSets(ex.name, history);
 
           return (
@@ -167,23 +214,38 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                     <button
                       className={`${styles.exUnitBtn}${unit === 'lb' ? ' ' + styles.exUnitActive : ''}`}
                       onClick={() => toggleUnit(exIdx, ex.name, 'lb')}
-                    >
-                      lb
-                    </button>
+                    >lb</button>
                     <button
                       className={`${styles.exUnitBtn}${unit === 'kg' ? ' ' + styles.exUnitActive : ''}`}
                       onClick={() => toggleUnit(exIdx, ex.name, 'kg')}
-                    >
-                      kg
-                    </button>
+                    >kg</button>
                   </div>
                 </div>
+
+                <div className={styles.exerciseActions}>
+                  <div className={styles.restControl}>
+                    <span className={styles.restIcon}>⏱</span>
+                    <button
+                      className={styles.restAdj}
+                      onClick={() => adjustRest(ex.name, -REST_STEP)}
+                      disabled={restDur <= REST_MIN}
+                    >−</button>
+                    <span className={styles.restVal}>{restDur}s</span>
+                    <button
+                      className={styles.restAdj}
+                      onClick={() => adjustRest(ex.name, REST_STEP)}
+                      disabled={restDur >= REST_MAX}
+                    >+</button>
+                  </div>
+                  <button className={styles.swapBtn} onClick={() => setSwapIdx(exIdx)}>
+                    Swap ↕
+                  </button>
+                </div>
               </div>
+
               {ex.sets.map((set, setIdx) => {
-                const last = lastData?.sets?.[setIdx];
-                const lastW = last?.weight
-                  ? convertWeight(last.weight, lastData.unit, unit)
-                  : null;
+                const last  = lastData?.sets?.[setIdx];
+                const lastW = last?.weight ? convertWeight(last.weight, lastData.unit, unit) : null;
                 const hasLast = lastW && last?.reps;
 
                 return (
@@ -229,6 +291,27 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           );
         })}
       </div>
+
+      {/* Swap bottom sheet */}
+      {swapIdx !== null && (
+        <>
+          <div className={styles.swapBackdrop} onClick={() => setSwapIdx(null)} />
+          <div className={styles.swapSheet}>
+            <div className={styles.swapHeader}>
+              <span className={styles.swapTitle}>Swap · {swapCategory}</span>
+              <button className={styles.swapClose} onClick={() => setSwapIdx(null)}>✕</button>
+            </div>
+            <div className={styles.swapList}>
+              {swapOptions.map(m => (
+                <button key={m.name} className={styles.swapOption} onClick={() => swapExercise(m)}>
+                  <span className={styles.swapOptName}>{m.name}</span>
+                  <span className={styles.swapOptMeta}>{m.equipment}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

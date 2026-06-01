@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import styles from './RestTimer.module.css';
 
-const REST_DURATION = 90;
-
-export default function RestTimer({ onDone }) {
-  const [remaining, setRemaining] = useState(REST_DURATION);
+export default function RestTimer({ duration = 90, onDone }) {
+  const [remaining, setRemaining] = useState(duration);
 
   useEffect(() => {
     if (remaining <= 0) {
@@ -15,7 +13,7 @@ export default function RestTimer({ onDone }) {
     return () => clearTimeout(t);
   }, [remaining, onDone]);
 
-  const pct = (remaining / REST_DURATION) * 100;
+  const pct = (remaining / duration) * 100;
 
   return (
     <div className={styles.bar}>

@@ -198,3 +198,130 @@
   width: 16px;
   height: 16px;
 }
+
+/* ── Exercise action row (rest control + swap) ─────────────── */
+.exerciseActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.restControl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.restIcon {
+  font-size: 13px;
+  margin-right: 2px;
+}
+
+.restAdj {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.restAdj:disabled {
+  opacity: 0.3;
+}
+
+.restVal {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.swapBtn {
+  font-size: 13px;
+  color: var(--brand);
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+/* ── Swap bottom sheet ─────────────────────────────────────── */
+.swapBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.swapSheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.swapHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.swapTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.swapClose {
+  font-size: 16px;
+  color: var(--text-secondary);
+  padding: 4px;
+}
+
+.swapList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0 env(safe-area-inset-bottom, 16px);
+}
+
+.swapOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.swapOption:last-child {
+  border-bottom: none;
+}
+
+.swapOptName {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.swapOptMeta {
+  font-size: 12px;
+  color: var(--text-hint);
+}

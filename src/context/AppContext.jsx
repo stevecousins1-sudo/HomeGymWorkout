@@ -31,10 +31,13 @@ export function AppProvider({ children }) {
   const [history, setHistory] = useState([]);
   const [unitPrefs, setUnitPrefsState] = useState({});
   const [globalUnit, setGlobalUnitState] = useState('lb');
+  const [restPrefs, setRestPrefsState] = useState({});
 
   const settingsIdRef = useRef(null);
   const unitPrefsRef = useRef({});
+  const restPrefsRef = useRef({});
   useEffect(() => { unitPrefsRef.current = unitPrefs; }, [unitPrefs]);
+  useEffect(() => { restPrefsRef.current = restPrefs; }, [restPrefs]);
 
   useEffect(() => {
     const unsub = pb.authStore.onChange((_, model) => {
@@ -45,6 +48,7 @@ export function AppProvider({ children }) {
         setActivePlanState(null);
         setUnitPrefsState({});
         setGlobalUnitState('lb');
+        setRestPrefsState({});
         settingsIdRef.current = null;
       }
     });
@@ -77,6 +81,7 @@ export function AppProvider({ children }) {
         setActivePlanState(s.active_plan || null);
         setUnitPrefsState(s.unit_prefs || {});
         setGlobalUnitState(s.global_unit || 'lb');
+        setRestPrefsState(s.rest_prefs || {});
       } else {
         // First login — create settings and seed history
         const newSettings = await pb.collection('user_settings').create({
@@ -154,6 +159,12 @@ export function AppProvider({ children }) {
     patchSettings({ unit_prefs: newPrefs });
   }, []);
 
+  const setRestPref = useCallback((movementName, duration) => {
+    const newPrefs = { ...restPrefsRef.current, [movementName]: duration };
+    setRestPrefsState(newPrefs);
+    patchSettings({ rest_prefs: newPrefs });
+  }, []);
+
   const setGlobalUnit = useCallback((unit) => {
     setGlobalUnitState(unit);
     patchSettings({ global_unit: unit });
@@ -183,11 +194,13 @@ export function AppProvider({ children }) {
       history,
       unitPrefs,
       globalUnit,
+      restPrefs,
       setActivePlan,
       cancelPlan,
       addHistory,
       setUnitPref,
       setGlobalUnit,
+      setRestPref,
       markScheduleEntry,
       logout,
     }}>
