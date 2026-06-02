@@ -109,12 +109,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   function updateSet(exIdx, setIdx, field, value) {
     setExercises(prev => prev.map((ex, ei) => {
       if (ei !== exIdx) return ex;
+      const prevValue = ex.sets[setIdx][field];
       return {
         ...ex,
         sets: ex.sets.map((s, si) => {
           if (si === setIdx) return { ...s, [field]: value };
-          // Feature 5: auto-fill empty sets below
-          if (si > setIdx && !s.done && !s[field]) return { ...s, [field]: value };
+          // Auto-fill sets below that are empty or still carry the previous auto-filled value
+          if (si > setIdx && !s.done && (!s[field] || s[field] === prevValue)) return { ...s, [field]: value };
           return s;
         }),
       };
@@ -176,11 +177,12 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   function updateWarmupSet(exIdx, setIdx, field, value) {
     setExercises(prev => prev.map((ex, ei) => {
       if (ei !== exIdx) return ex;
+      const prevValue = ex.warmupSets[setIdx][field];
       return {
         ...ex,
         warmupSets: ex.warmupSets.map((s, si) => {
           if (si === setIdx) return { ...s, [field]: value };
-          if (si > setIdx && !s.done && !s[field]) return { ...s, [field]: value };
+          if (si > setIdx && !s.done && (!s[field] || s[field] === prevValue)) return { ...s, [field]: value };
           return s;
         }),
       };
