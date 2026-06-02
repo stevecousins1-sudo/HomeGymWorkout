@@ -1,0 +1,40 @@
+name: Prune old R2 backups
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Every Sunday at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+
+    steps:
+      - name: Delete all but the 10 newest backups
+        run: |
+          ENDPOINT="https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          KEEP=10
+
+          FILES=$(aws s3 ls "s3://${{ secrets.CF_R2_BUCKET }}/" \
+            --endpoint-url "$ENDPOINT" \
+            | sort | awk '{print $4}')
+
+          COUNT=$(echo "$FILES" | grep -c . || true)
+          DELETE_COUNT=$((COUNT - KEEP))
+
+          if [ "$DELETE_COUNT" -le 0 ]; then
+            echo "Only $COUNT backups present, nothing to prune (keeping $KEEP)"
+            exit 0
+          fi
+
+          echo "Found $COUNT backups, deleting $DELETE_COUNT oldest..."
+          echo "$FILES" | head -n "$DELETE_COUNT" | while read FILE; do
+            echo "Deleting: $FILE"
+            aws s3 rm "s3://${{ secrets.CF_R2_BUCKET }}/$FILE" \
+              --endpoint-url "$ENDPOINT"
+          done
+          echo "Done"

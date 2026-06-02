@@ -2,7 +2,8 @@ FROM alpine:3.19
 
 ARG PB_VERSION=0.22.4
 
-RUN apk add --no-cache ca-certificates wget unzip
+RUN apk add --no-cache ca-certificates wget unzip python3 py3-pip \
+    && pip install --quiet --break-system-packages awscli
 
 RUN wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" \
     -O /tmp/pb.zip \
@@ -10,15 +11,12 @@ RUN wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VE
     && rm /tmp/pb.zip \
     && chmod +x /pb/pocketbase
 
-# Create data dir in the image; Render will overlay the persistent disk here
 RUN mkdir -p /pb/pb_data
 
 COPY pb_migrations /pb/pb_migrations
+COPY entrypoint.sh /pb/entrypoint.sh
+RUN chmod +x /pb/entrypoint.sh
 
 EXPOSE 10000
 
-# Render sets PORT=10000; --migrationsDir tells PocketBase where to find migrations
-CMD sh -c "/pb/pocketbase serve \
-    --http=0.0.0.0:${PORT:-10000} \
-    --dir=/pb/pb_data \
-    --migrationsDir=/pb/pb_migrations"
+CMD ["/pb/entrypoint.sh"]

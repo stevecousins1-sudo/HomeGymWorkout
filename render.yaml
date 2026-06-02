@@ -15,6 +15,7 @@ services:
   - type: web
     name: homegymworkout-api
     env: docker
+    autoDeploy: false
     dockerfilePath: ./pocketbase/Dockerfile
     dockerContext: ./pocketbase
     healthCheckPath: /api/health
@@ -22,3 +23,16 @@ services:
       name: pb-data
       mountPath: /pb/pb_data
       sizeGB: 1
+    envVars:
+      - key: PB_ADMIN_EMAIL
+        sync: false
+      - key: PB_ADMIN_PASSWORD
+        sync: false
+      - key: CF_R2_ACCESS_KEY_ID
+        sync: false
+      - key: CF_R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: CF_R2_BUCKET
+        sync: false
+      - key: CF_R2_ACCOUNT_ID
+        sync: false
