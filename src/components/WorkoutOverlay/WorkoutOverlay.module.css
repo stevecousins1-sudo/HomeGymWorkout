@@ -119,22 +119,83 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
+/* ── Swipe-to-delete wrapper ───────────────────────────────── */
+.swipeWrapper {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.swipeWrapper:last-child {
+  border-bottom: none;
+}
+
+.deleteZone {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 0;
+}
+
+.deleteBtn {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Set row ───────────────────────────────────────────────── */
 .setRow {
   display: flex;
   align-items: center;
   gap: 5px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.setRow:last-child {
-  border-bottom: none;
+  background: var(--bg-primary);
+  position: relative;
+  z-index: 1;
 }
 
 .setRow.done {
   background: var(--brand-light);
 }
 
+/* ── Warmup row (amber tint) ───────────────────────────────── */
+.warmupRow {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.warmupRow.done {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.warmupLabel {
+  color: #B45309 !important;
+}
+
+/* ── Flash error animation ─────────────────────────────────── */
+@keyframes flashError {
+  0%   { background: rgba(226, 75, 74, 0.0); }
+  20%  { background: rgba(226, 75, 74, 0.18); }
+  60%  { background: rgba(226, 75, 74, 0.18); }
+  100% { background: rgba(226, 75, 74, 0.0); }
+}
+
+.flashRow {
+  animation: flashError 0.7s ease-out;
+}
+
+/* ── Set label column ──────────────────────────────────────── */
 .setLabelCol {
   display: flex;
   flex-direction: column;
@@ -158,7 +219,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 6px 4px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
   text-align: center;
 }
@@ -222,7 +283,7 @@
   height: 16px;
 }
 
-/* ── Exercise action row (rest control + swap) ─────────────── */
+/* ── Exercise action row ───────────────────────────────────── */
 .exerciseActions {
   display: flex;
   align-items: center;
@@ -271,26 +332,74 @@
 
 .actionBtns {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
-.historyBtn {
+.actionBtn {
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
   padding: 4px 0;
 }
 
-.historyBtnActive {
+.actionBtnActive {
   color: var(--brand);
 }
 
-.swapBtn {
+/* ── Warmup count prompt ───────────────────────────────────── */
+.warmupPrompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(245, 158, 11, 0.4);
+}
+
+.warmupPromptLabel {
   font-size: 13px;
-  color: var(--brand);
+  color: #B45309;
   font-weight: 500;
-  padding: 4px 0;
+  flex: 1;
+}
+
+.warmupAdj {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.08);
+  color: #B45309;
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.warmupCount {
+  font-size: 15px;
+  font-weight: 600;
+  color: #B45309;
+  min-width: 20px;
+  text-align: center;
+}
+
+.warmupAddBtn {
+  background: #B45309;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+}
+
+.warmupCancelBtn {
+  font-size: 14px;
+  color: var(--text-hint);
+  padding: 4px 6px;
 }
 
 /* ── Lift history panel ────────────────────────────────────── */
@@ -345,6 +454,18 @@
   font-size: 13px;
   color: var(--text-hint);
   padding: 4px 0;
+}
+
+/* ── Add set button ────────────────────────────────────────── */
+.addSetBtn {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand);
+  border-top: 1px dashed var(--border-strong);
+  text-align: center;
+  background: transparent;
 }
 
 /* ── Swap bottom sheet ─────────────────────────────────────── */
