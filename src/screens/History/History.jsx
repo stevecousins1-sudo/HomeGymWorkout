@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getExercisesForDay } from '../../data/exercises';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
@@ -24,9 +24,43 @@ function entryToExerciseStrings(entry) {
 }
 
 export default function History() {
-  const { history } = useApp();
+  const { history, importHistory } = useApp();
   const [detail, setDetail] = useState(null);
   const [overlay, setOverlay] = useState(null);
+  const [importStatus, setImportStatus] = useState(null); // { count, error }
+  const fileInputRef = useRef(null);
+
+  function handleExport() {
+    const data = JSON.stringify(history, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workout-history-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const entries = Array.isArray(parsed) ? parsed : [];
+      if (entries.length === 0) { setImportStatus({ error: 'No entries found in file' }); return; }
+      // Skip entries that already exist (same date + name)
+      const existing = new Set(history.map(h => `${h.date}|${h.name}`));
+      const newEntries = entries.filter(e => !existing.has(`${e.date}|${e.name}`));
+      if (newEntries.length === 0) { setImportStatus({ count: 0 }); return; }
+      const count = await importHistory(newEntries);
+      setImportStatus({ count });
+    } catch (err) {
+      setImportStatus({ error: 'Invalid backup file' });
+    }
+    setTimeout(() => setImportStatus(null), 4000);
+  }
 
   const totalWorkouts = history.length;
   const totalVolume = history.reduce((a, h) => a + h.volume, 0);
@@ -136,7 +170,35 @@ export default function History() {
   return (
     <>
       <div className={styles.screen}>
-        <div className={styles.heading}>History</div>
+        <div className={styles.headingRow}>
+          <div className={styles.heading}>History</div>
+          <div className={styles.backupBtns}>
+            <button className={styles.backupBtn} onClick={handleExport} disabled={history.length === 0}>
+              Export
+            </button>
+            <button className={styles.backupBtn} onClick={() => fileInputRef.current?.click()}>
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
+            />
+          </div>
+        </div>
+
+        {importStatus && (
+          <div className={`${styles.importBanner}${importStatus.error ? ' ' + styles.importError : ''}`}>
+            {importStatus.error
+              ? importStatus.error
+              : importStatus.count === 0
+                ? 'All entries already present — nothing imported'
+                : `Imported ${importStatus.count} workout${importStatus.count !== 1 ? 's' : ''}`
+            }
+          </div>
+        )}
 
         <div className={styles.statsRow}>
           <div className={styles.statChip}>

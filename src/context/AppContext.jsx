@@ -167,6 +167,35 @@ export function AppProvider({ children }) {
     }
   }, []);
 
+  const importHistory = useCallback(async (entries) => {
+    const results = [];
+    for (const entry of entries) {
+      try {
+        const record = await pb.collection('history').create({
+          user: pb.authStore.model.id,
+          entry_date: entry.date,
+          name: entry.name,
+          day_name: entry.dayName || entry.name,
+          duration: entry.duration || 0,
+          volume: entry.volume || 0,
+          sets: entry.sets || 0,
+          exercises: entry.exercises || [],
+        });
+        results.push(recordToEntry(record));
+      } catch (e) {
+        console.error('Failed to import entry:', entry.date, e);
+      }
+    }
+    if (results.length > 0) {
+      setHistory(prev => {
+        const merged = [...results, ...prev];
+        merged.sort((a, b) => b.date.localeCompare(a.date));
+        return merged;
+      });
+    }
+    return results.length;
+  }, []);
+
   const setUnitPref = useCallback((movementName, unit) => {
     const newPrefs = { ...unitPrefsRef.current, [movementName]: unit };
     setUnitPrefsState(newPrefs);
@@ -212,6 +241,7 @@ export function AppProvider({ children }) {
       setActivePlan,
       cancelPlan,
       addHistory,
+      importHistory,
       setUnitPref,
       setGlobalUnit,
       setRestPref,
