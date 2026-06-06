@@ -67,9 +67,9 @@ jobs:
       - name: Download backup from PocketBase
         run: |
           BACKUP_NAME="${{ steps.backup.outputs.name }}"
+          TOKEN="${{ steps.auth.outputs.token }}"
           HTTP_CODE=$(curl -s -L -o /tmp/$BACKUP_NAME -w "%{http_code}" \
-            -H "Authorization: ${{ steps.auth.outputs.token }}" \
-            "${{ secrets.PB_URL }}/api/backups/$BACKUP_NAME")
+            "${{ secrets.PB_URL }}/api/backups/$BACKUP_NAME?token=$TOKEN")
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Download failed (HTTP $HTTP_CODE)"
             exit 1
