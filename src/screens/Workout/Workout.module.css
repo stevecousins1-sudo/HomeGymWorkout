@@ -121,44 +121,6 @@
   flex-shrink: 0;
 }
 
-.cardActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.deleteMovementBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-hint);
-  font-size: 18px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.deleteMovementBtn:hover {
-  color: var(--red);
-}
-
-.customBadge {
-  display: inline-block;
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--brand);
-  background: var(--brand-light, rgba(99,102,241,0.1));
-  border-radius: 4px;
-  padding: 1px 5px;
-  vertical-align: middle;
-  letter-spacing: 0.3px;
-}
-
 /* ── Search row ─────────────────────────────────────────────── */
 .searchRow {
   display: flex;
@@ -182,156 +144,15 @@
   color: var(--text-hint);
 }
 
-/* ── Add movement button ────────────────────────────────────── */
-.addMovementBtn {
-  padding: 9px 14px;
-  font-size: 14px;
+.customBadge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--brand);
-  border: 1.5px solid var(--brand);
-  border-radius: var(--radius-lg);
-  background: transparent;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* ── Add movement modal ─────────────────────────────────────── */
-.modalBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 110;
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.modalSheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 120;
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.modalTitle {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.modalClose {
-  font-size: 16px;
-  color: var(--text-secondary);
-  padding: 4px 6px;
-}
-
-.modalBody {
-  overflow-y: auto;
-  flex: 1;
-  padding: 20px 20px env(safe-area-inset-bottom, 20px);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.fieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.fieldLabel {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  background: var(--brand-light, rgba(99,102,241,0.1));
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
   letter-spacing: 0.3px;
-}
-
-.fieldInput {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  font-size: 15px;
-  color: var(--text-primary);
-  width: 100%;
-}
-
-.fieldInputError {
-  border-color: var(--red);
-}
-
-.fieldError {
-  font-size: 12px;
-  color: var(--red);
-}
-
-.pillRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.optionPill {
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  white-space: nowrap;
-}
-
-.optionPillActive {
-  background: var(--brand);
-  color: #fff;
-  border-color: var(--brand);
-}
-
-.unitToggle {
-  display: flex;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-pill);
-  padding: 3px;
-  align-self: flex-start;
-}
-
-.unitBtn {
-  padding: 6px 20px;
-  border-radius: var(--radius-pill);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.unitBtnActive {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-}
-
-.saveBtn {
-  background: var(--brand);
-  color: #fff;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  font-size: 15px;
-  font-weight: 600;
-  width: 100%;
-  text-align: center;
-  margin-top: 4px;
 }
