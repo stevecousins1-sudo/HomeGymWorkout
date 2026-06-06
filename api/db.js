@@ -33,8 +33,10 @@ async function initDb() {
       active_plan JSONB,
       unit_prefs JSONB DEFAULT '{}',
       global_unit TEXT DEFAULT 'lb',
-      rest_prefs JSONB DEFAULT '{}'
+      rest_prefs JSONB DEFAULT '{}',
+      custom_movements JSONB DEFAULT '[]'
     );
+    ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS custom_movements JSONB DEFAULT '[]';
   `);
   console.log('Database ready');
 }

@@ -26,6 +26,7 @@ export function AppProvider({ children }) {
   const [unitPrefs, setUnitPrefsState] = useState({});
   const [globalUnit, setGlobalUnitState] = useState('lb');
   const [restPrefs, setRestPrefsState] = useState({});
+  const [customMovements, setCustomMovementsState] = useState([]);
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -43,6 +44,7 @@ export function AppProvider({ children }) {
         setUnitPrefsState({});
         setGlobalUnitState('lb');
         setRestPrefsState({});
+        setCustomMovementsState([]);
       }
     });
     return unsub;
@@ -90,9 +92,10 @@ export function AppProvider({ children }) {
         setUnitPrefsState(s.unit_prefs || {});
         setGlobalUnitState(s.global_unit || 'lb');
         setRestPrefsState(s.rest_prefs || {});
+        setCustomMovementsState(s.custom_movements || []);
       } else if (settingsRes.reason?.status === 404) {
         // First login — create default settings with empty history
-        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {} });
+        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [] });
         setHistory([]);
       }
     } catch (e) {
@@ -180,6 +183,22 @@ export function AppProvider({ children }) {
     patchSettings({ rest_prefs: newPrefs });
   }, []);
 
+  const addCustomMovement = useCallback((movement) => {
+    setCustomMovementsState(prev => {
+      const updated = [...prev, { ...movement, custom: true }];
+      patchSettings({ custom_movements: updated });
+      return updated;
+    });
+  }, []);
+
+  const deleteCustomMovement = useCallback((name) => {
+    setCustomMovementsState(prev => {
+      const updated = prev.filter(m => m.name !== name);
+      patchSettings({ custom_movements: updated });
+      return updated;
+    });
+  }, []);
+
   const setGlobalUnit = useCallback((unit) => {
     setGlobalUnitState(unit);
     patchSettings({ global_unit: unit });
@@ -215,6 +234,9 @@ export function AppProvider({ children }) {
       cancelPlan,
       addHistory,
       importHistory,
+      customMovements,
+      addCustomMovement,
+      deleteCustomMovement,
       setUnitPref,
       setGlobalUnit,
       setRestPref,

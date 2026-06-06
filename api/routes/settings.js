@@ -17,18 +17,19 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { active_plan, unit_prefs, global_unit, rest_prefs } = req.body;
+  const { active_plan, unit_prefs, global_unit, rest_prefs, custom_movements } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs, custom_movements)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id) DO UPDATE SET
          active_plan = EXCLUDED.active_plan,
          unit_prefs = EXCLUDED.unit_prefs,
          global_unit = EXCLUDED.global_unit,
-         rest_prefs = EXCLUDED.rest_prefs
+         rest_prefs = EXCLUDED.rest_prefs,
+         custom_movements = EXCLUDED.custom_movements
        RETURNING *`,
-      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {})]
+      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {}), JSON.stringify(custom_movements || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -38,14 +39,14 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/', async (req, res) => {
-  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs'];
+  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements'];
   const updates = [];
   const values = [];
   let i = 1;
   for (const key of allowed) {
     if (key in req.body) {
       updates.push(`${key} = $${i}`);
-      values.push(key === 'global_unit' ? req.body[key] : JSON.stringify(req.body[key]));
+      values.push(['global_unit'].includes(key) ? req.body[key] : JSON.stringify(req.body[key]));
       i++;
     }
   }
