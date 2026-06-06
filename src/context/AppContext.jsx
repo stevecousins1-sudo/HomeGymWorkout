@@ -1,5 +1,5 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
-import pb from '../lib/pb';
+import { authStore, auth, historyApi, settingsApi } from '../lib/api';
 
 const AppContext = createContext(null);
 
@@ -17,62 +17,53 @@ function recordToEntry(r) {
     date: r.entry_date,
     name: r.name,
     dayName: r.day_name,
-    duration: r.duration,
-    volume: r.volume,
-    sets: r.sets,
+    duration: Number(r.duration),
+    volume: Number(r.volume),
+    sets: Number(r.sets),
     exercises: r.exercises || [],
   };
 }
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(() => pb.authStore.model);
+  const [user, setUser] = useState(() => authStore.model);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activePlan, setActivePlanState] = useState(null);
   const [history, setHistory] = useState([]);
   const [unitPrefs, setUnitPrefsState] = useState({});
   const [globalUnit, setGlobalUnitState] = useState('lb');
   const [restPrefs, setRestPrefsState] = useState({});
-  const [loadError, setLoadError] = useState(false);
 
-  const settingsIdRef = useRef(null);
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
   useEffect(() => { unitPrefsRef.current = unitPrefs; }, [unitPrefs]);
   useEffect(() => { restPrefsRef.current = restPrefs; }, [restPrefs]);
 
   useEffect(() => {
-    const unsub = pb.authStore.onChange((_, model) => {
+    const unsub = authStore.onChange((_, model) => {
       setUser(model);
       if (!model) {
         setLoading(false);
+        setLoadError(false);
         setHistory([]);
         setActivePlanState(null);
         setUnitPrefsState({});
         setGlobalUnitState('lb');
         setRestPrefsState({});
-        setLoadError(false);
-        settingsIdRef.current = null;
       }
     });
     return unsub;
   }, []);
 
   useEffect(() => {
-    if (!pb.authStore.isValid) {
-      // Stale model in localStorage but token is expired — clear it so the
-      // Auth screen is shown rather than a broken main-app state.
-      pb.authStore.clear();
+    if (!authStore.isValid) {
+      authStore.clear();
       setLoading(false);
       return;
     }
-    // Silently renew the auth token on every app open.  This resets the
-    // expiry clock so users are never prompted to re-login as long as they
-    // open the app within the token lifetime.
-    pb.collection('users').authRefresh().catch(err => {
-      // Only force re-login on definitive auth failures (not network errors)
-      // so an offline start doesn't unexpectedly log the user out.
+    auth.refresh().catch(err => {
       if (err?.status === 401 || err?.status === 403) {
-        pb.authStore.clear();
+        authStore.clear();
         setLoading(false);
       }
     });
@@ -84,15 +75,13 @@ export function AppProvider({ children }) {
     setLoadError(false);
     try {
       const [histRes, settingsRes] = await Promise.allSettled([
-        pb.collection('history').getFullList({ sort: '-entry_date,-created' }),
-        pb.collection('user_settings').getFirstListItem(''),
+        historyApi.list(),
+        settingsApi.get(),
       ]);
 
-      // If both failed with a network error, PocketBase is likely still
-      // starting up — surface an error so the user can retry.
       if (histRes.status === 'rejected' && settingsRes.status === 'rejected') {
         const err = histRes.reason;
-        if (!err?.status || err.status >= 500 || err.status === 0) {
+        if (!err?.status || err.status === 0 || err.status >= 500) {
           setLoadError(true);
           return;
         }
@@ -104,24 +93,16 @@ export function AppProvider({ children }) {
 
       if (settingsRes.status === 'fulfilled') {
         const s = settingsRes.value;
-        settingsIdRef.current = s.id;
         setActivePlanState(s.active_plan || null);
         setUnitPrefsState(s.unit_prefs || {});
         setGlobalUnitState(s.global_unit || 'lb');
         setRestPrefsState(s.rest_prefs || {});
-      } else {
+      } else if (settingsRes.reason?.status === 404) {
         // First login — create settings and seed history
-        const newSettings = await pb.collection('user_settings').create({
-          user: pb.authStore.model.id,
-          active_plan: null,
-          unit_prefs: {},
-          global_unit: 'lb',
-        });
-        settingsIdRef.current = newSettings.id;
-
+        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {} });
+        const seeded = [];
         for (const entry of SEED_HISTORY) {
-          await pb.collection('history').create({
-            user: pb.authStore.model.id,
+          const record = await historyApi.create({
             entry_date: entry.date,
             name: entry.name,
             day_name: entry.dayName,
@@ -130,8 +111,8 @@ export function AppProvider({ children }) {
             sets: entry.sets,
             exercises: [],
           });
+          seeded.push(record);
         }
-        const seeded = await pb.collection('history').getFullList({ sort: '-entry_date' });
         setHistory(seeded.map(recordToEntry));
       }
     } catch (e) {
@@ -143,9 +124,8 @@ export function AppProvider({ children }) {
   }
 
   async function patchSettings(patch) {
-    if (!settingsIdRef.current) return;
     try {
-      await pb.collection('user_settings').update(settingsIdRef.current, patch);
+      await settingsApi.patch(patch);
     } catch (e) {
       console.error('Failed to save settings:', e);
     }
@@ -165,8 +145,7 @@ export function AppProvider({ children }) {
     const tempId = `temp_${Date.now()}`;
     setHistory(prev => [{ ...entry, id: tempId }, ...prev]);
     try {
-      const record = await pb.collection('history').create({
-        user: pb.authStore.model.id,
+      const record = await historyApi.create({
         entry_date: entry.date,
         name: entry.name,
         day_name: entry.dayName,
@@ -185,8 +164,7 @@ export function AppProvider({ children }) {
     const results = [];
     for (const entry of entries) {
       try {
-        const record = await pb.collection('history').create({
-          user: pb.authStore.model.id,
+        const record = await historyApi.create({
           entry_date: entry.date,
           name: entry.name,
           day_name: entry.dayName || entry.name,
@@ -240,7 +218,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    pb.authStore.clear();
+    authStore.clear();
   }, []);
 
   return (

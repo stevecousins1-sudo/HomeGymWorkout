@@ -5,7 +5,7 @@ services:
     buildCommand: npm run build
     staticPublishPath: ./dist
     envVars:
-      - key: VITE_PB_URL
+      - key: VITE_API_URL
         value: https://homegymworkout-api.onrender.com
     routes:
       - type: rewrite
@@ -14,25 +14,19 @@ services:
 
   - type: web
     name: homegymworkout-api
-    env: docker
-    autoDeploy: false
-    dockerfilePath: ./pocketbase/Dockerfile
-    dockerContext: ./pocketbase
+    env: node
+    rootDir: api
+    buildCommand: npm install
+    startCommand: node server.js
     healthCheckPath: /api/health
-    disk:
-      name: pb-data
-      mountPath: /pb/pb_data
-      sizeGB: 1
     envVars:
-      - key: PB_ADMIN_EMAIL
-        sync: false
-      - key: PB_ADMIN_PASSWORD
-        sync: false
-      - key: CF_R2_ACCESS_KEY_ID
-        sync: false
-      - key: CF_R2_SECRET_ACCESS_KEY
-        sync: false
-      - key: CF_R2_BUCKET
-        sync: false
-      - key: CF_R2_ACCOUNT_ID
-        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: homegymworkout-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: homegymworkout-db
+    plan: starter

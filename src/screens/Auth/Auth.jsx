@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import pb from '../../lib/pb';
+import { auth } from '../../lib/api';
 import styles from './Auth.module.css';
 
 export default function Auth() {
@@ -18,35 +18,23 @@ export default function Auth() {
     setSubmitting(true);
     try {
       if (mode === 'register') {
-        await pb.collection('users').create({ email, password, passwordConfirm });
-        // Registration succeeded — switch to login and prompt user to sign in
-        setSuccess('Account created! Please sign in below.');
-        setMode('login');
-        setPassword('');
-        setPasswordConfirm('');
-        setSubmitting(false);
+        if (password !== passwordConfirm) {
+          setError('Passwords do not match');
+          setSubmitting(false);
+          return;
+        }
+        await auth.register(email, password);
         return;
       }
-      await pb.collection('users').authWithPassword(email, password);
+      await auth.login(email, password);
     } catch (err) {
-      console.error('[Auth] error:', err);
       let msg = 'Something went wrong.';
-      if (err?.status === 0) {
+      if (err?.status === 0 || !err?.status) {
         msg = 'Cannot reach the server — check your connection.';
-      } else if (err?.response?.message) {
-        msg = err.response.message;
       } else if (err?.message) {
         msg = err.message;
       }
-      // Show data field errors if present (e.g. "password too short")
-      const data = err?.response?.data;
-      if (data) {
-        const fieldErrors = Object.entries(data)
-          .map(([k, v]) => `${k}: ${v?.message ?? v}`)
-          .join('; ');
-        if (fieldErrors) msg += ` — ${fieldErrors}`;
-      }
-      setError(`${msg} (status: ${err?.status ?? 'network'})`);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -57,8 +45,6 @@ export default function Auth() {
     setError('');
     setSuccess('');
   }
-
-  const pbUrl = import.meta.env.VITE_PB_URL || 'http://localhost:8090';
 
   return (
     <div className={styles.screen}>
@@ -127,10 +113,6 @@ export default function Auth() {
             {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
         </form>
-
-        {error && (
-          <div className={styles.debugUrl}>API: {pbUrl}</div>
-        )}
       </div>
     </div>
   );
