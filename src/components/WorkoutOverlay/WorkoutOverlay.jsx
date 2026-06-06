@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
@@ -9,14 +9,15 @@ import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from
 import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
 
-const REST_DEFAULT      = 90;
-const REST_STEP         = 15;
-const REST_MIN          = 15;
-const REST_MAX          = 300;
-const SWIPE_LOCK_PX     = 60;  // px of swipe needed to lock delete open
-const SWIPE_DELETE_W    = 72;  // width of the revealed delete zone
+const REST_DEFAULT   = 90;
+const REST_STEP      = 15;
+const REST_MIN       = 15;
+const REST_MAX       = 300;
+const SWIPE_LOCK_PX  = 60;
+const SWIPE_DELETE_W = 72;
 
 const BUILD_LABEL = getBuildLabel();
+const MOV_CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 const _movMap = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
 function getMovement(name) { return _movMap.get(name.toLowerCase()) ?? null; }
@@ -60,34 +61,56 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   const initList = () => exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
 
-  const [exercises, setExercises]                   = useState(initList);
-  const [units, setUnits]                           = useState(() =>
+  const [exercises, setExercises]         = useState(initList);
+  const [units, setUnits]                 = useState(() =>
     initList().reduce((acc, ex) => ({ ...acc, [ex.name]: unitPrefs[ex.name] ?? getDefaultUnit(ex.name) }), {})
   );
-  const [restDurations, setRestDurations]           = useState(() =>
+  const [restDurations, setRestDurations] = useState(() =>
     initList().reduce((acc, ex) => ({ ...acc, [ex.name]: restPrefs[ex.name] ?? REST_DEFAULT }), {})
   );
   const [restVisible, setRestVisible]               = useState(false);
   const [activeRestDuration, setActiveRestDuration] = useState(REST_DEFAULT);
   const [swapIdx, setSwapIdx]                       = useState(null);
   const [historyOpen, setHistoryOpen]               = useState(new Set());
-  const [flashSet, setFlashSet]                     = useState(null);     // 'exIdx-setIdx'
-  const [warmupPrompt, setWarmupPrompt]             = useState(null);     // { exIdx, count }
-  const [lockedSwipe, setLockedSwipe]               = useState(null);     // swipe key
+  const [flashSet, setFlashSet]                     = useState(null);
+  const [warmupPrompt, setWarmupPrompt]             = useState(null);
+  const [lockedSwipe, setLockedSwipe]               = useState(null);
+  const [prToast, setPrToast]                       = useState(null);
+  const [addingExercise, setAddingExercise]         = useState(false);
+  const [addFilter, setAddFilter]                   = useState('All');
 
-  // Refs for swipe animation (direct DOM updates avoid re-renders during drag)
   const swipeRefs    = useRef({});
   const touchStartX  = useRef(0);
   const activeSwipeK = useRef(null);
 
   const handleDismissRest = useCallback(() => setRestVisible(false), []);
 
-  // ── Unit toggle ─────────────────────────────────────────────────────────────
+  // ── Compute PRs from history ─────────────────────────────────────────────────
+  const prsByExercise = useMemo(() => {
+    const map = {};
+    for (const entry of history) {
+      for (const ex of (entry.exercises || [])) {
+        if (!map[ex.name]) map[ex.name] = { weight: 0, volume: 0 };
+        const exUnit = ex.unit || 'lb';
+        for (const set of (ex.sets || [])) {
+          if (!set.done) continue;
+          const w = parseFloat(set.weight) || 0;
+          const r = parseFloat(set.reps) || 0;
+          const wLb = exUnit === 'kg' ? w * 2.2046 : w;
+          if (wLb > map[ex.name].weight) map[ex.name].weight = wLb;
+          if (wLb * r > map[ex.name].volume) map[ex.name].volume = wLb * r;
+        }
+      }
+    }
+    return map;
+  }, [history]);
+
+  // ── Unit toggle ──────────────────────────────────────────────────────────────
   function toggleUnit(exIdx, exName, newUnit) {
     const oldUnit = units[exName];
     if (oldUnit === newUnit) return;
     setExercises(prev => prev.map((ex, i) =>
-      i === exIdx ? { ...ex, sets: ex.sets.map(s => ({ ...s, weight: convertWeight(s.weight, oldUnit, newUnit) })) } : ex
+      i !== exIdx ? ex : { ...ex, sets: ex.sets.map(s => ({ ...s, weight: convertWeight(s.weight, oldUnit, newUnit) })) }
     ));
     setUnits(prev => ({ ...prev, [exName]: newUnit }));
     setUnitPref(exName, newUnit);
@@ -100,7 +123,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setRestPref(exName, next);
   }
 
-  // ── Lift history panel ───────────────────────────────────────────────────────
+  // ── History panel ────────────────────────────────────────────────────────────
   function toggleHistoryPanel(exName) {
     setHistoryOpen(prev => { const n = new Set(prev); n.has(exName) ? n.delete(exName) : n.add(exName); return n; });
   }
@@ -114,7 +137,6 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         ...ex,
         sets: ex.sets.map((s, si) => {
           if (si === setIdx) return { ...s, [field]: value };
-          // Auto-fill sets below that are empty or still carry the previous auto-filled value
           if (si > setIdx && !s.done && (!s[field] || s[field] === prevValue)) return { ...s, [field]: value };
           return s;
         }),
@@ -137,7 +159,6 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const ex  = exercises[exIdx];
     const set = ex.sets[setIdx];
     if (!set.done && !isBodyweight(ex.name) && (!set.weight || !set.reps)) {
-      // Feature 1: flash the row instead of completing
       const key = `${exIdx}-${setIdx}`;
       setFlashSet(key);
       setTimeout(() => setFlashSet(null), 700);
@@ -150,6 +171,22 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       if (!set.done) {
         setActiveRestDuration(restDurations[prev[exIdx].name] ?? REST_DEFAULT);
         setRestVisible(true);
+
+        // PR check
+        const exName = ex.name;
+        const unit   = units[exName];
+        const w      = parseFloat(set.weight) || 0;
+        const r      = parseFloat(set.reps) || 0;
+        const wLb    = unit === 'kg' ? w * 2.2046 : w;
+        const prev2  = prsByExercise[exName];
+        if (wLb > 0 && r > 0) {
+          const isWeightPR = wLb > (prev2?.weight || 0);
+          const isVolumePR = (wLb * r) > (prev2?.volume || 0);
+          if (isWeightPR || isVolumePR) {
+            setPrToast(isWeightPR ? '🏆 Weight PR!' : '🏆 Volume PR!');
+            setTimeout(() => setPrToast(null), 3000);
+          }
+        }
       }
       return next;
     });
@@ -165,6 +202,22 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       return { ...ex, sets: ex.sets.filter((_, si) => si !== setIdx) };
     }));
     setLockedSwipe(null);
+  }
+
+  // ── Delete / add exercise ────────────────────────────────────────────────────
+  function deleteExercise(exIdx) {
+    setExercises(prev => prev.filter((_, i) => i !== exIdx));
+  }
+
+  function addExercise(movement) {
+    const prescription = '3×10';
+    setExercises(prev => [
+      ...prev,
+      { name: movement.name, prescription, sets: buildSets(prescription), warmupSets: [] },
+    ]);
+    setUnits(prev => ({ ...prev, [movement.name]: unitPrefs[movement.name] ?? getDefaultUnit(movement.name) }));
+    setRestDurations(prev => ({ ...prev, [movement.name]: restPrefs[movement.name] ?? REST_DEFAULT }));
+    setAddingExercise(false);
   }
 
   // ── Warmup sets ──────────────────────────────────────────────────────────────
@@ -216,9 +269,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setLockedSwipe(null);
   }
 
-  // ── Swipe-to-delete (direct DOM for smooth animation) ────────────────────────
+  // ── Swipe-to-delete ──────────────────────────────────────────────────────────
   function swipeStart(e, key) {
-    // Close any other locked swipe first
     if (lockedSwipe && lockedSwipe !== key) {
       const el = swipeRefs.current[lockedSwipe];
       if (el) { el.style.transition = 'transform 0.2s'; el.style.transform = 'translateX(0)'; }
@@ -236,12 +288,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const delta = touchStartX.current - e.touches[0].clientX;
     const el = swipeRefs.current[key];
     if (!el) return;
-    if (delta > 0) {
-      el.style.transform = `translateX(-${Math.min(SWIPE_DELETE_W, delta)}px)`;
-    } else if (delta < -10) {
-      // Swiping right — close
-      el.style.transform = 'translateX(0)';
-    }
+    if (delta > 0) el.style.transform = `translateX(-${Math.min(SWIPE_DELETE_W, delta)}px)`;
+    else if (delta < -10) el.style.transform = 'translateX(0)';
   }
 
   function swipeEnd(key, isDone) {
@@ -268,7 +316,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setLockedSwipe(null);
   }
 
-  // ── Swap exercise ─────────────────────────────────────────────────────────────
+  // ── Swap exercise ────────────────────────────────────────────────────────────
   function swapExercise(newMov) {
     if (swapIdx === null) return;
     const old = exercises[swapIdx];
@@ -280,10 +328,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setSwapIdx(null);
   }
 
-  // ── Finish ────────────────────────────────────────────────────────────────────
+  // ── Finish ───────────────────────────────────────────────────────────────────
   function handleFinish() {
     if (!window.confirm('Finish workout and save?')) return;
-    // Warmup sets excluded from totals
     const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.done).length, 0);
     const totalVolume = exercises.reduce((acc, ex) => {
       const unit = units[ex.name];
@@ -315,7 +362,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     if (window.confirm('Cancel workout? Progress will be lost.')) onClose();
   }
 
-  // ── Set row renderer (shared for working + warmup sets) ───────────────────────
+  // ── Set row renderer ─────────────────────────────────────────────────────────
   function renderSetRow(exIdx, setIdx, set, isWarmup) {
     const ex     = exercises[exIdx];
     const unit   = units[ex.name];
@@ -326,10 +373,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const last     = !isWarmup ? lastData?.sets?.[setIdx] : null;
     const lastW    = last?.weight ? convertWeight(last.weight, lastData.unit, unit) : null;
 
-    const canRemove = isWarmup ? true : ex.sets.length > 1;
-    const isFlash   = !isWarmup && flashSet === key;
-    const isLocked  = lockedSwipe === key;
-
+    const canRemove    = isWarmup ? true : ex.sets.length > 1;
+    const isFlash      = !isWarmup && flashSet === key;
+    const isLocked     = lockedSwipe === key;
     const onUpdate     = isWarmup ? updateWarmupSet  : updateSet;
     const onAdjReps    = isWarmup ? adjustWarmupReps  : adjustReps;
     const onToggleDone = isWarmup ? toggleWarmupDone  : toggleDone;
@@ -346,9 +392,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           ref={el => { if (el) swipeRefs.current[key] = el; }}
           className={[
             styles.setRow,
-            set.done    ? styles.done       : '',
-            isWarmup    ? styles.warmupRow  : '',
-            isFlash     ? styles.flashRow   : '',
+            set.done ? styles.done    : '',
+            isWarmup ? styles.warmupRow : '',
+            isFlash  ? styles.flashRow  : '',
           ].filter(Boolean).join(' ')}
           onTouchStart={e => swipeStart(e, key)}
           onTouchMove={swipeMove}
@@ -395,13 +441,16 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     );
   }
 
-  // ── Swap options ──────────────────────────────────────────────────────────────
   const swapCategory = swapIdx !== null ? getMovement(exercises[swapIdx]?.name)?.category : null;
   const swapOptions  = swapCategory
     ? MOVEMENTS.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
     : [];
 
-  // ── Main render ───────────────────────────────────────────────────────────────
+  const addOptions = MOVEMENTS.filter(m =>
+    (addFilter === 'All' || m.category === addFilter) &&
+    !exercises.find(e => e.name === m.name)
+  );
+
   return (
     <div className={styles.overlay}>
       <div className={styles.header}>
@@ -414,29 +463,34 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         <button className={styles.finishBtn} onClick={handleFinish}>Finish</button>
       </div>
 
+      {prToast && <div className={styles.prToast}>{prToast}</div>}
       {restVisible && <RestTimer duration={activeRestDuration} onDone={handleDismissRest} />}
 
       <div className={styles.scrollArea}>
         {exercises.map((ex, exIdx) => {
-          const unit           = units[ex.name];
-          const restDur        = restDurations[ex.name] ?? REST_DEFAULT;
-          const exHistory      = getExerciseHistory(ex.name, history);
-          const showHistory    = historyOpen.has(ex.name);
-          const showWarmupUi   = warmupPrompt?.exIdx === exIdx;
-          const warmupSets     = ex.warmupSets ?? [];
+          const unit         = units[ex.name];
+          const restDur      = restDurations[ex.name] ?? REST_DEFAULT;
+          const exHistory    = getExerciseHistory(ex.name, history);
+          const showHistory  = historyOpen.has(ex.name);
+          const showWarmupUi = warmupPrompt?.exIdx === exIdx;
+          const warmupSets   = ex.warmupSets ?? [];
 
           return (
             <div key={exIdx} className={styles.exerciseCard}>
-              {/* Header */}
               <div className={styles.exerciseHeader}>
                 <div className={styles.exerciseTitleRow}>
                   <div>
                     <div className={styles.exerciseName}>{ex.name}</div>
                     {ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
                   </div>
-                  <div className={styles.exUnitToggle}>
-                    <button className={`${styles.exUnitBtn}${unit === 'lb' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'lb')}>lb</button>
-                    <button className={`${styles.exUnitBtn}${unit === 'kg' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'kg')}>kg</button>
+                  <div className={styles.titleActions}>
+                    <div className={styles.exUnitToggle}>
+                      <button className={`${styles.exUnitBtn}${unit === 'lb' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'lb')}>lb</button>
+                      <button className={`${styles.exUnitBtn}${unit === 'kg' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'kg')}>kg</button>
+                    </div>
+                    {exercises.length > 1 && (
+                      <button className={styles.deleteExBtn} onClick={() => deleteExercise(exIdx)}>✕</button>
+                    )}
                   </div>
                 </div>
 
@@ -460,7 +514,6 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                   </div>
                 </div>
 
-                {/* Inline warmup count picker */}
                 {showWarmupUi && (
                   <div className={styles.warmupPrompt}>
                     <span className={styles.warmupPromptLabel}>Warmup sets:</span>
@@ -473,14 +526,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 )}
               </div>
 
-              {/* Lift history panel */}
               {showHistory && (
                 <div className={styles.historyPanel}>
                   <div className={styles.historyPanelTitle}>PREVIOUS SESSIONS</div>
                   {exHistory.length === 0
                     ? <div className={styles.historyEmpty}>No previous sessions recorded</div>
                     : exHistory.map((session, si) => {
-                        const sx   = session.exercises?.find(e => e.name === ex.name);
+                        const sx    = session.exercises?.find(e => e.name === ex.name);
                         const sUnit = sx?.unit || 'lb';
                         const done  = sx?.sets?.filter(s => s.done) ?? [];
                         return (
@@ -502,17 +554,16 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 </div>
               )}
 
-              {/* Warmup sets */}
               {warmupSets.map((set, si) => renderSetRow(exIdx, si, set, true))}
-
-              {/* Working sets */}
               {ex.sets.map((set, si) => renderSetRow(exIdx, si, set, false))}
-
-              {/* Add set */}
               <button className={styles.addSetBtn} onClick={() => addSet(exIdx)}>+ Add set</button>
             </div>
           );
         })}
+
+        <button className={styles.addExerciseBtn} onClick={() => setAddingExercise(true)}>
+          + Add exercise
+        </button>
       </div>
 
       {/* Swap sheet */}
@@ -529,6 +580,36 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 <button key={m.name} className={styles.swapOption} onClick={() => swapExercise(m)}>
                   <span className={styles.swapOptName}>{m.name}</span>
                   <span className={styles.swapOptMeta}>{m.equipment}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Add exercise sheet */}
+      {addingExercise && (
+        <>
+          <div className={styles.swapBackdrop} onClick={() => setAddingExercise(false)} />
+          <div className={styles.swapSheet}>
+            <div className={styles.swapHeader}>
+              <span className={styles.swapTitle}>Add exercise</span>
+              <button className={styles.swapClose} onClick={() => setAddingExercise(false)}>✕</button>
+            </div>
+            <div className={styles.addFilterRow}>
+              {MOV_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  className={`${styles.addFilterPill}${addFilter === cat ? ' ' + styles.addFilterActive : ''}`}
+                  onClick={() => setAddFilter(cat)}
+                >{cat}</button>
+              ))}
+            </div>
+            <div className={styles.swapList}>
+              {addOptions.map(m => (
+                <button key={m.name} className={styles.swapOption} onClick={() => addExercise(m)}>
+                  <span className={styles.swapOptName}>{m.name}</span>
+                  <span className={styles.swapOptMeta}>{m.category} · {m.equipment}</span>
                 </button>
               ))}
             </div>

@@ -3,13 +3,6 @@ import { authStore, auth, historyApi, settingsApi } from '../lib/api';
 
 const AppContext = createContext(null);
 
-const SEED_HISTORY = [
-  { date:'2026-05-10', name:'Push Day A',  dayName:'Push A',          duration:3120, volume:12840, sets:17 },
-  { date:'2026-05-08', name:'Leg Day',     dayName:'Legs',            duration:3660, volume:18560, sets:20 },
-  { date:'2026-05-07', name:'Pull Day A',  dayName:'Pull A',          duration:2880, volume:14320, sets:16 },
-  { date:'2026-05-05', name:'Push Day B',  dayName:'Chest & Triceps', duration:3300, volume:13100, sets:18 },
-  { date:'2026-05-04', name:'Leg Day',     dayName:'Legs',            duration:3480, volume:17890, sets:19 },
-];
 
 function recordToEntry(r) {
   return {
@@ -98,22 +91,9 @@ export function AppProvider({ children }) {
         setGlobalUnitState(s.global_unit || 'lb');
         setRestPrefsState(s.rest_prefs || {});
       } else if (settingsRes.reason?.status === 404) {
-        // First login — create settings and seed history
+        // First login — create default settings with empty history
         await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {} });
-        const seeded = [];
-        for (const entry of SEED_HISTORY) {
-          const record = await historyApi.create({
-            entry_date: entry.date,
-            name: entry.name,
-            day_name: entry.dayName,
-            duration: entry.duration,
-            volume: entry.volume,
-            sets: entry.sets,
-            exercises: [],
-          });
-          seeded.push(record);
-        }
-        setHistory(seeded.map(recordToEntry));
+        setHistory([]);
       }
     } catch (e) {
       console.error('Failed to load user data:', e);

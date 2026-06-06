@@ -468,6 +468,79 @@
   background: transparent;
 }
 
+/* ── PR toast ──────────────────────────────────────────────── */
+.prToast {
+  background: #1a1a2e;
+  color: #FFD700;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 16px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* ── Title actions (unit toggle + delete) ──────────────────── */
+.titleActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.deleteExBtn {
+  font-size: 14px;
+  color: var(--text-hint);
+  padding: 4px 6px;
+  line-height: 1;
+}
+
+.deleteExBtn:hover {
+  color: var(--red);
+}
+
+/* ── Add exercise button ────────────────────────────────────── */
+.addExerciseBtn {
+  width: 100%;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand);
+  border: 1.5px dashed var(--brand);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* ── Add exercise filter row ────────────────────────────────── */
+.addFilterRow {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.addFilterPill {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.addFilterActive {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
 /* ── Swap bottom sheet ─────────────────────────────────────── */
 .swapBackdrop {
   position: fixed;

@@ -2,17 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 
 export function useWorkoutTimer(running) {
   const [elapsed, setElapsed] = useState(0);
-  const intervalRef = useRef(null);
+  const startRef = useRef(null);
 
   useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setElapsed(s => s + 1);
-      }, 1000);
-    } else {
-      clearInterval(intervalRef.current);
-    }
-    return () => clearInterval(intervalRef.current);
+    if (!running) return;
+    // Use wall-clock time so the timer stays accurate when the tab is
+    // backgrounded or the browser throttles setInterval.
+    if (!startRef.current) startRef.current = Date.now();
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
   }, [running]);
 
   return elapsed;
