@@ -159,18 +159,40 @@
   letter-spacing: 0.3px;
 }
 
+/* ── Search row ─────────────────────────────────────────────── */
+.searchRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.searchInput {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.searchInput::placeholder {
+  color: var(--text-hint);
+}
+
 /* ── Add movement button ────────────────────────────────────── */
 .addMovementBtn {
-  width: 100%;
-  margin-top: 16px;
-  padding: 13px;
+  padding: 9px 14px;
   font-size: 14px;
   font-weight: 600;
   color: var(--brand);
-  border: 1.5px dashed var(--brand);
+  border: 1.5px solid var(--brand);
   border-radius: var(--radius-lg);
   background: transparent;
-  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ── Add movement modal ─────────────────────────────────────── */

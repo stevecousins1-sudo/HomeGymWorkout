@@ -24,11 +24,18 @@ export default function Workout() {
   const [form, setForm]       = useState(EMPTY_FORM);
   const [errors, setErrors]   = useState({});
 
+  const [search, setSearch] = useState('');
+
   const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
 
-  const visible = filter === 'All'
-    ? allMovements
-    : allMovements.filter(m => m.category === filter);
+  const visible = useMemo(() => {
+    let list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(m => m.name.toLowerCase().includes(q) || m.equipment.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allMovements, filter, search]);
 
   function startWorkout(movement) {
     setOverlay({
@@ -80,6 +87,19 @@ export default function Workout() {
           <span className={styles.buildCustomArrow}>→</span>
         </button>
 
+        <div className={styles.searchRow}>
+          <input
+            className={styles.searchInput}
+            type="search"
+            placeholder="Search movements…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <button className={styles.addMovementBtn} onClick={openAdd}>
+            + Add
+          </button>
+        </div>
+
         <div className={styles.filters}>
           {CATEGORIES.map(cat => (
             <button
@@ -119,10 +139,6 @@ export default function Workout() {
             </div>
           ))}
         </div>
-
-        <button className={styles.addMovementBtn} onClick={openAdd}>
-          + Add movement
-        </button>
       </div>
 
       {/* Add movement modal */}
