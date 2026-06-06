@@ -10,7 +10,7 @@ import Auth from './screens/Auth/Auth';
 import styles from './App.module.css';
 
 function AppShell() {
-  const { user, loading } = useApp();
+  const { user, loading, loadError, retryLoad } = useApp();
 
   if (loading) {
     return (
@@ -24,6 +24,12 @@ function AppShell() {
 
   return (
     <div className={styles.layout}>
+      {loadError && (
+        <div className={styles.errorBanner}>
+          Could not reach the server — your data may not have loaded.{' '}
+          <button className={styles.retryBtn} onClick={retryLoad}>Retry</button>
+        </div>
+      )}
       <main className={styles.content}>
         <Routes>
           <Route path="/" element={<Today />} />

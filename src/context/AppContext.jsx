@@ -32,6 +32,7 @@ export function AppProvider({ children }) {
   const [unitPrefs, setUnitPrefsState] = useState({});
   const [globalUnit, setGlobalUnitState] = useState('lb');
   const [restPrefs, setRestPrefsState] = useState({});
+  const [loadError, setLoadError] = useState(false);
 
   const settingsIdRef = useRef(null);
   const unitPrefsRef = useRef({});
@@ -49,6 +50,7 @@ export function AppProvider({ children }) {
         setUnitPrefsState({});
         setGlobalUnitState('lb');
         setRestPrefsState({});
+        setLoadError(false);
         settingsIdRef.current = null;
       }
     });
@@ -79,11 +81,22 @@ export function AppProvider({ children }) {
 
   async function loadUserData() {
     setLoading(true);
+    setLoadError(false);
     try {
       const [histRes, settingsRes] = await Promise.allSettled([
         pb.collection('history').getFullList({ sort: '-entry_date,-created' }),
         pb.collection('user_settings').getFirstListItem(''),
       ]);
+
+      // If both failed with a network error, PocketBase is likely still
+      // starting up — surface an error so the user can retry.
+      if (histRes.status === 'rejected' && settingsRes.status === 'rejected') {
+        const err = histRes.reason;
+        if (!err?.status || err.status >= 500 || err.status === 0) {
+          setLoadError(true);
+          return;
+        }
+      }
 
       if (histRes.status === 'fulfilled') {
         setHistory(histRes.value.map(recordToEntry));
@@ -123,6 +136,7 @@ export function AppProvider({ children }) {
       }
     } catch (e) {
       console.error('Failed to load user data:', e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -233,6 +247,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user,
       loading,
+      loadError,
       activePlan,
       history,
       unitPrefs,
@@ -246,6 +261,7 @@ export function AppProvider({ children }) {
       setGlobalUnit,
       setRestPref,
       markScheduleEntry,
+      retryLoad: loadUserData,
       logout,
     }}>
       {children}
