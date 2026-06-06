@@ -68,8 +68,9 @@ jobs:
         run: |
           BACKUP_NAME="${{ steps.backup.outputs.name }}"
           TOKEN="${{ steps.auth.outputs.token }}"
+          TOKEN_ENCODED=$(printf '%s' "$TOKEN" | jq -Rr @uri)
           HTTP_CODE=$(curl -s -L -o /tmp/$BACKUP_NAME -w "%{http_code}" \
-            "${{ secrets.PB_URL }}/api/backups/$BACKUP_NAME?token=$TOKEN")
+            "${{ secrets.PB_URL }}/api/backups/$BACKUP_NAME?token=$TOKEN_ENCODED")
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Download failed (HTTP $HTTP_CODE)"
             exit 1
