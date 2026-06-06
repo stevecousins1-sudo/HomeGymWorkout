@@ -286,3 +286,136 @@
   color: var(--text-hint);
   padding: 40px 0;
 }
+
+/* ── Tab bar ────────────────────────────────────────────────── */
+.tabBar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tabBtn {
+  padding: 7px 20px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+
+.tabBtnActive {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+/* ── Detail notes ───────────────────────────────────────────── */
+.detailNotes {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.detailNotesLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-hint);
+  margin-bottom: 6px;
+}
+
+.detailNotesText {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ── Card notes preview ─────────────────────────────────────── */
+.cardNotes {
+  font-size: 12px;
+  color: var(--text-hint);
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+/* ── Progress tab ───────────────────────────────────────────── */
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exPickerWrap {
+  position: relative;
+}
+
+.exPickerInput {
+  width: 100%;
+  padding: 10px 36px 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.exPickerInput::placeholder {
+  color: var(--text-hint);
+}
+
+.exPickerClear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--text-hint);
+  padding: 4px;
+}
+
+.exDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.exDropOption {
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.exDropOption:last-child {
+  border-bottom: none;
+}
+
+.chartTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.chartPlaceholder {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 14px;
+  color: var(--text-hint);
+}

@@ -14,6 +14,7 @@ function recordToEntry(r) {
     volume: Number(r.volume),
     sets: Number(r.sets),
     exercises: r.exercises || [],
+    notes: r.notes || '',
   };
 }
 
@@ -27,6 +28,7 @@ export function AppProvider({ children }) {
   const [globalUnit, setGlobalUnitState] = useState('lb');
   const [restPrefs, setRestPrefsState] = useState({});
   const [customMovements, setCustomMovementsState] = useState([]);
+  const [templates, setTemplatesState] = useState([]);
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -45,6 +47,7 @@ export function AppProvider({ children }) {
         setGlobalUnitState('lb');
         setRestPrefsState({});
         setCustomMovementsState([]);
+        setTemplatesState([]);
       }
     });
     return unsub;
@@ -93,9 +96,10 @@ export function AppProvider({ children }) {
         setGlobalUnitState(s.global_unit || 'lb');
         setRestPrefsState(s.rest_prefs || {});
         setCustomMovementsState(s.custom_movements || []);
+        setTemplatesState(s.templates || []);
       } else if (settingsRes.reason?.status === 404) {
         // First login — create default settings with empty history
-        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [] });
+        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [], templates: [] });
         setHistory([]);
       }
     } catch (e) {
@@ -136,6 +140,7 @@ export function AppProvider({ children }) {
         volume: entry.volume,
         sets: entry.sets,
         exercises: entry.exercises || [],
+        notes: entry.notes || null,
       });
       setHistory(prev => prev.map(h => h.id === tempId ? recordToEntry(record) : h));
     } catch (e) {
@@ -199,6 +204,22 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const saveTemplate = useCallback((template) => {
+    setTemplatesState(prev => {
+      const updated = [...prev, { ...template, id: Date.now() }];
+      patchSettings({ templates: updated });
+      return updated;
+    });
+  }, []);
+
+  const deleteTemplate = useCallback((id) => {
+    setTemplatesState(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      patchSettings({ templates: updated });
+      return updated;
+    });
+  }, []);
+
   const setGlobalUnit = useCallback((unit) => {
     setGlobalUnitState(unit);
     patchSettings({ global_unit: unit });
@@ -237,6 +258,9 @@ export function AppProvider({ children }) {
       customMovements,
       addCustomMovement,
       deleteCustomMovement,
+      templates,
+      saveTemplate,
+      deleteTemplate,
       setUnitPref,
       setGlobalUnit,
       setRestPref,

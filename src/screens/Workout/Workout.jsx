@@ -9,11 +9,12 @@ import styles from './Workout.module.css';
 const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 export default function Workout() {
-  const { customMovements } = useApp();
-  const [filter, setFilter]   = useState('All');
-  const [search, setSearch]   = useState('');
-  const [overlay, setOverlay] = useState(null);
-  const [building, setBuilding] = useState(false);
+  const { customMovements, templates, deleteTemplate } = useApp();
+  const [filter, setFilter]         = useState('All');
+  const [search, setSearch]         = useState('');
+  const [overlay, setOverlay]       = useState(null);
+  const [building, setBuilding]     = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
 
@@ -31,6 +32,14 @@ export default function Workout() {
       name:      workoutNameForMovement(movement),
       dayName:   workoutNameForMovement(movement),
       exercises: buildWorkoutFromMovement(movement),
+    });
+  }
+
+  function startFromTemplate(template) {
+    setOverlay({
+      name:      template.name,
+      dayName:   template.name,
+      exercises: template.exercises.map(e => `${e.name} — ${e.prescription}`),
     });
   }
 
@@ -52,6 +61,41 @@ export default function Workout() {
           </div>
           <span className={styles.buildCustomArrow}>→</span>
         </button>
+
+        {/* Templates section */}
+        {templates.length > 0 && (
+          <div className={styles.templatesSection}>
+            <button
+              className={styles.templatesSectionHeader}
+              onClick={() => setTemplatesOpen(o => !o)}
+            >
+              <span>My Templates ({templates.length})</span>
+              <span className={styles.templatesChevron}>{templatesOpen ? '▲' : '▼'}</span>
+            </button>
+            {templatesOpen && (
+              <div className={styles.templatesList}>
+                {templates.map(t => (
+                  <div key={t.id} className={styles.templateCard}>
+                    <div className={styles.templateInfo}>
+                      <div className={styles.templateName}>{t.name}</div>
+                      <div className={styles.templateMeta}>{t.exercises.length} exercises</div>
+                    </div>
+                    <div className={styles.templateActions}>
+                      <button
+                        className={styles.templateDeleteBtn}
+                        onClick={() => deleteTemplate(t.id)}
+                      >✕</button>
+                      <button
+                        className={styles.templateStartBtn}
+                        onClick={() => startFromTemplate(t)}
+                      >Start</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className={styles.searchRow}>
           <input

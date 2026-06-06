@@ -17,19 +17,20 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { active_plan, unit_prefs, global_unit, rest_prefs, custom_movements } = req.body;
+  const { active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs, custom_movements)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (user_id) DO UPDATE SET
          active_plan = EXCLUDED.active_plan,
          unit_prefs = EXCLUDED.unit_prefs,
          global_unit = EXCLUDED.global_unit,
          rest_prefs = EXCLUDED.rest_prefs,
-         custom_movements = EXCLUDED.custom_movements
+         custom_movements = EXCLUDED.custom_movements,
+         templates = EXCLUDED.templates
        RETURNING *`,
-      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {}), JSON.stringify(custom_movements || [])]
+      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {}), JSON.stringify(custom_movements || []), JSON.stringify(templates || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -39,7 +40,7 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/', async (req, res) => {
-  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements'];
+  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates'];
   const updates = [];
   const values = [];
   let i = 1;

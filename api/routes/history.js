@@ -19,12 +19,12 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { entry_date, name, day_name, duration, volume, sets, exercises } = req.body;
+  const { entry_date, name, day_name, duration, volume, sets, exercises, notes } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO history (user_id, entry_date, name, day_name, duration, volume, sets, exercises)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.id, entry_date, name, day_name || name, duration || 0, volume || 0, sets || 0, JSON.stringify(exercises || [])]
+      `INSERT INTO history (user_id, entry_date, name, day_name, duration, volume, sets, exercises, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.id, entry_date, name, day_name || name, duration || 0, volume || 0, sets || 0, JSON.stringify(exercises || []), notes || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

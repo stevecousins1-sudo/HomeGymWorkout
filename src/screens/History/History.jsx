@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getExercisesForDay } from '../../data/exercises';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
+import ProgressChart from '../../components/ProgressChart/ProgressChart';
 import { formatDate, formatDuration, formatVolume } from '../../utils';
 import styles from './History.module.css';
 
@@ -15,7 +16,6 @@ function parseSetCount(prescription) {
   return match ? parseInt(match[1], 10) : 3;
 }
 
-// Convert a history entry's exercises array back to "Name — Nx" strings for WorkoutOverlay
 function entryToExerciseStrings(entry) {
   if (entry.exercises?.length > 0) {
     return entry.exercises.map(ex => `${ex.name} — ${ex.sets.length}×`);
@@ -25,10 +25,28 @@ function entryToExerciseStrings(entry) {
 
 export default function History() {
   const { history, importHistory } = useApp();
-  const [detail, setDetail] = useState(null);
-  const [overlay, setOverlay] = useState(null);
-  const [importStatus, setImportStatus] = useState(null); // { count, error }
+  const [activeTab, setActiveTab]     = useState('history');
+  const [detail, setDetail]           = useState(null);
+  const [overlay, setOverlay]         = useState(null);
+  const [importStatus, setImportStatus] = useState(null);
+  const [exSearch, setExSearch]       = useState('');
+  const [selectedEx, setSelectedEx]   = useState(null);
+  const [exDropOpen, setExDropOpen]   = useState(false);
   const fileInputRef = useRef(null);
+
+  // All unique exercise names that appear in history
+  const allExerciseNames = useMemo(() => {
+    const set = new Set();
+    for (const h of history) {
+      for (const ex of (h.exercises || [])) set.add(ex.name);
+    }
+    return [...set].sort();
+  }, [history]);
+
+  const filteredExNames = useMemo(() => {
+    const q = exSearch.trim().toLowerCase();
+    return q ? allExerciseNames.filter(n => n.toLowerCase().includes(q)) : allExerciseNames;
+  }, [allExerciseNames, exSearch]);
 
   function handleExport() {
     const data = JSON.stringify(history, null, 2);
@@ -50,21 +68,20 @@ export default function History() {
       const parsed = JSON.parse(text);
       const entries = Array.isArray(parsed) ? parsed : [];
       if (entries.length === 0) { setImportStatus({ error: 'No entries found in file' }); return; }
-      // Skip entries that already exist (same date + name)
       const existing = new Set(history.map(h => `${h.date}|${h.name}`));
       const newEntries = entries.filter(e => !existing.has(`${e.date}|${e.name}`));
       if (newEntries.length === 0) { setImportStatus({ count: 0 }); return; }
       const count = await importHistory(newEntries);
       setImportStatus({ count });
-    } catch (err) {
+    } catch {
       setImportStatus({ error: 'Invalid backup file' });
     }
     setTimeout(() => setImportStatus(null), 4000);
   }
 
   const totalWorkouts = history.length;
-  const totalVolume = history.reduce((a, h) => a + h.volume, 0);
-  const avgSets = history.length > 0
+  const totalVolume   = history.reduce((a, h) => a + h.volume, 0);
+  const avgSets       = history.length > 0
     ? Math.round(history.reduce((a, h) => a + h.sets, 0) / history.length)
     : 0;
 
@@ -73,11 +90,10 @@ export default function History() {
     setOverlay({ name: entry.name, dayName: entry.dayName || entry.name, exercises });
   }
 
+  // ── Detail view ──────────────────────────────────────────────────────────────
   if (detail) {
     const hasExerciseData = detail.exercises?.length > 0;
-
-    // Fall back to plan template for old entries without exercise data
-    const planExercises = hasExerciseData
+    const planExercises   = hasExerciseData
       ? null
       : getExercisesForDay(detail.dayName || detail.name);
 
@@ -102,6 +118,13 @@ export default function History() {
               <div className={styles.chipLabel}>Sets done</div>
             </div>
           </div>
+
+          {detail.notes?.trim() && (
+            <div className={styles.detailNotes}>
+              <div className={styles.detailNotesLabel}>NOTES</div>
+              <div className={styles.detailNotesText}>{detail.notes}</div>
+            </div>
+          )}
 
           <div className={styles.sectionTitle}>MOVEMENTS</div>
 
@@ -167,6 +190,7 @@ export default function History() {
     );
   }
 
+  // ── Main view ────────────────────────────────────────────────────────────────
   return (
     <>
       <div className={styles.screen}>
@@ -215,34 +239,99 @@ export default function History() {
           </div>
         </div>
 
-        {history.length === 0 && (
-          <div className={styles.empty}>No workouts yet. Start one to see history.</div>
+        {/* Tab bar */}
+        <div className={styles.tabBar}>
+          <button
+            className={`${styles.tabBtn}${activeTab === 'history' ? ' ' + styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('history')}
+          >History</button>
+          <button
+            className={`${styles.tabBtn}${activeTab === 'progress' ? ' ' + styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('progress')}
+          >Progress</button>
+        </div>
+
+        {/* History tab */}
+        {activeTab === 'history' && (
+          <>
+            {history.length === 0 && (
+              <div className={styles.empty}>No workouts yet. Start one to see history.</div>
+            )}
+            <div className={styles.list}>
+              {history.map(entry => (
+                <div key={entry.id} className={styles.card} onClick={() => setDetail(entry)}>
+                  <div className={styles.cardTop}>
+                    <div>
+                      <div className={styles.cardName}>{entry.name}</div>
+                      <div className={styles.cardDate}>{formatDate(entry.date)}</div>
+                    </div>
+                    <span className={styles.viewLink}>View →</span>
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.metaItem}>{formatDuration(entry.duration)}</span>
+                    <span className={styles.metaItem}>{formatVolume(entry.volume)}</span>
+                    <span className={styles.metaItem}>{entry.sets} sets</span>
+                  </div>
+                  {entry.notes?.trim() && (
+                    <div className={styles.cardNotes}>{entry.notes}</div>
+                  )}
+                  <button
+                    className={styles.redoBtn}
+                    onClick={e => { e.stopPropagation(); startRedo(entry); }}
+                  >
+                    ↺ Redo
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
-        <div className={styles.list}>
-          {history.map(entry => (
-            <div key={entry.id} className={styles.card} onClick={() => setDetail(entry)}>
-              <div className={styles.cardTop}>
-                <div>
-                  <div className={styles.cardName}>{entry.name}</div>
-                  <div className={styles.cardDate}>{formatDate(entry.date)}</div>
+        {/* Progress tab */}
+        {activeTab === 'progress' && (
+          <div className={styles.progressSection}>
+            {allExerciseNames.length === 0 ? (
+              <div className={styles.empty}>Complete some workouts to track progress.</div>
+            ) : (
+              <>
+                <div className={styles.exPickerWrap}>
+                  <input
+                    className={styles.exPickerInput}
+                    placeholder="Search exercise…"
+                    value={selectedEx ? selectedEx : exSearch}
+                    onFocus={() => { setExDropOpen(true); if (selectedEx) { setExSearch(''); setSelectedEx(null); } }}
+                    onChange={e => { setExSearch(e.target.value); setSelectedEx(null); setExDropOpen(true); }}
+                  />
+                  {selectedEx && (
+                    <button className={styles.exPickerClear} onClick={() => { setSelectedEx(null); setExSearch(''); }}>✕</button>
+                  )}
+                  {exDropOpen && !selectedEx && filteredExNames.length > 0 && (
+                    <div className={styles.exDropdown}>
+                      {filteredExNames.map(name => (
+                        <button
+                          key={name}
+                          className={styles.exDropOption}
+                          onClick={() => { setSelectedEx(name); setExDropOpen(false); setExSearch(''); }}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className={styles.viewLink}>View →</span>
-              </div>
-              <div className={styles.cardMeta}>
-                <span className={styles.metaItem}>{formatDuration(entry.duration)}</span>
-                <span className={styles.metaItem}>{formatVolume(entry.volume)}</span>
-                <span className={styles.metaItem}>{entry.sets} sets</span>
-              </div>
-              <button
-                className={styles.redoBtn}
-                onClick={e => { e.stopPropagation(); startRedo(entry); }}
-              >
-                ↺ Redo
-              </button>
-            </div>
-          ))}
-        </div>
+
+                {selectedEx ? (
+                  <>
+                    <div className={styles.chartTitle}>{selectedEx} — Best weight per session (lb)</div>
+                    <ProgressChart exerciseName={selectedEx} history={history} />
+                  </>
+                ) : (
+                  <div className={styles.chartPlaceholder}>Select an exercise to view progress</div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {overlay && (

@@ -5,6 +5,8 @@ import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
+import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
+import { calcPlates } from '../../lib/plates';
 import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
@@ -16,12 +18,8 @@ const REST_MAX       = 300;
 const SWIPE_LOCK_PX  = 60;
 const SWIPE_DELETE_W = 72;
 
-const BUILD_LABEL = getBuildLabel();
+const BUILD_LABEL    = getBuildLabel();
 const MOV_CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-
-const _movMap = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
-function getMovement(name) { return _movMap.get(name.toLowerCase()) ?? null; }
-function isBodyweight(name) { return getMovement(name)?.equipment?.includes('Bodyweight') ?? false; }
 
 function parseExercise(str) {
   const parts = str.split(' — ');
@@ -55,9 +53,16 @@ function getExerciseHistory(exName, history, limit = 4) {
 
 export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
-          restPrefs, setRestPref, history } = useApp();
+          restPrefs, setRestPref, history, customMovements } = useApp();
   const navigate = useNavigate();
   const elapsed  = useWorkoutTimer(true);
+
+  // Merged movement list (built-in + custom)
+  const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
+  const movMap = useMemo(() => new Map(allMovements.map(m => [m.name.toLowerCase(), m])), [allMovements]);
+  const getMovement   = name => movMap.get(name.toLowerCase()) ?? null;
+  const isBodyweight  = name => getMovement(name)?.equipment?.includes('Bodyweight') ?? false;
+  const isBarbell     = name => getMovement(name)?.equipment?.toLowerCase().includes('barbell') ?? false;
 
   const initList = () => exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
 
@@ -78,10 +83,27 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [prToast, setPrToast]                       = useState(null);
   const [addingExercise, setAddingExercise]         = useState(false);
   const [addFilter, setAddFilter]                   = useState('All');
+  const [showSummary, setShowSummary]               = useState(false);
+  const [sessionNotes, setSessionNotes]             = useState('');
 
   const swipeRefs    = useRef({});
   const touchStartX  = useRef(0);
   const activeSwipeK = useRef(null);
+  const audioCtxRef  = useRef(null);
+
+  function ensureAudioCtx() {
+    if (audioCtxRef.current) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Unlock audio on iOS with a silent buffer
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start();
+      audioCtxRef.current = ctx;
+    } catch {}
+  }
 
   const handleDismissRest = useCallback(() => setRestVisible(false), []);
 
@@ -164,6 +186,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       setTimeout(() => setFlashSet(null), 700);
       return;
     }
+    ensureAudioCtx();
     setExercises(prev => {
       const next = prev.map((e, ei) =>
         ei !== exIdx ? e : { ...e, sets: e.sets.map((s, si) => si !== setIdx ? s : { ...s, done: !s.done }) }
@@ -330,7 +353,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   // ── Finish ───────────────────────────────────────────────────────────────────
   function handleFinish() {
-    if (!window.confirm('Finish workout and save?')) return;
+    setShowSummary(true);
+  }
+
+  function handleSave() {
     const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.done).length, 0);
     const totalVolume = exercises.reduce((acc, ex) => {
       const unit = units[ex.name];
@@ -348,6 +374,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     addHistory({
       id: Date.now(), date: today, name: workoutName, dayName: dayName || workoutName,
       duration: elapsed, volume: Math.round(totalVolume), sets: totalSets,
+      notes: sessionNotes,
       exercises: exercises.map(ex => ({
         name: ex.name, unit: units[ex.name],
         sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
@@ -356,6 +383,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     });
     onClose();
     navigate('/history');
+  }
+
+  function handleDiscard() {
+    onClose();
   }
 
   function handleCancel() {
@@ -443,10 +474,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   const swapCategory = swapIdx !== null ? getMovement(exercises[swapIdx]?.name)?.category : null;
   const swapOptions  = swapCategory
-    ? MOVEMENTS.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
+    ? allMovements.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
     : [];
 
-  const addOptions = MOVEMENTS.filter(m =>
+  const addOptions = allMovements.filter(m =>
     (addFilter === 'All' || m.category === addFilter) &&
     !exercises.find(e => e.name === m.name)
   );
@@ -464,7 +495,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       </div>
 
       {prToast && <div className={styles.prToast}>{prToast}</div>}
-      {restVisible && <RestTimer duration={activeRestDuration} onDone={handleDismissRest} />}
+      {restVisible && (
+        <RestTimer
+          duration={activeRestDuration}
+          onDone={handleDismissRest}
+          audioCtx={audioCtxRef.current}
+        />
+      )}
 
       <div className={styles.scrollArea}>
         {exercises.map((ex, exIdx) => {
@@ -474,6 +511,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           const showHistory  = historyOpen.has(ex.name);
           const showWarmupUi = warmupPrompt?.exIdx === exIdx;
           const warmupSets   = ex.warmupSets ?? [];
+
+          // Plate calculator
+          const maxWeight    = ex.sets.reduce((m, s) => Math.max(m, parseFloat(s.weight) || 0), 0);
+          const plates       = isBarbell(ex.name) && maxWeight > 0 ? calcPlates(maxWeight, unit) : null;
 
           return (
             <div key={exIdx} className={styles.exerciseCard}>
@@ -556,15 +597,50 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
               {warmupSets.map((set, si) => renderSetRow(exIdx, si, set, true))}
               {ex.sets.map((set, si) => renderSetRow(exIdx, si, set, false))}
+
+              {plates && plates.length > 0 && (
+                <div className={styles.platePanel}>
+                  <span className={styles.platePanelLabel}>Each side:</span>
+                  {plates.map(({ plate, count }) => (
+                    <span key={plate} className={styles.plateChip}>{count}×{plate}</span>
+                  ))}
+                </div>
+              )}
+
               <button className={styles.addSetBtn} onClick={() => addSet(exIdx)}>+ Add set</button>
             </div>
           );
         })}
 
+        <div className={styles.notesSection}>
+          <label className={styles.notesLabel}>Session notes</label>
+          <textarea
+            className={styles.notesArea}
+            placeholder="How did it feel? Any observations…"
+            value={sessionNotes}
+            onChange={e => setSessionNotes(e.target.value)}
+            rows={3}
+          />
+        </div>
+
         <button className={styles.addExerciseBtn} onClick={() => setAddingExercise(true)}>
           + Add exercise
         </button>
       </div>
+
+      {/* Workout summary */}
+      {showSummary && (
+        <WorkoutSummary
+          workoutName={workoutName}
+          elapsed={elapsed}
+          exercises={exercises}
+          units={units}
+          prsByExercise={prsByExercise}
+          notes={sessionNotes}
+          onSave={handleSave}
+          onDiscard={handleDiscard}
+        />
+      )}
 
       {/* Swap sheet */}
       {swapIdx !== null && (
