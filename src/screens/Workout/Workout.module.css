@@ -68,8 +68,8 @@
 }
 
 .startBtn {
-  background: var(--brand-light);
-  color: var(--brand-text);
+  background: var(--brand);
+  color: #fff;
   padding: 8px 14px;
   border-radius: var(--radius-lg);
   font-size: 14px;
