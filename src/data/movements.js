@@ -15,6 +15,16 @@ export const MOVEMENTS = [
   { name: 'Push-up',               category: 'Chest',     equipment: 'Bodyweight' },
   { name: 'Close grip push-up',    category: 'Chest',     equipment: 'Bodyweight' },
   { name: 'Landmine press',        category: 'Chest',     equipment: 'Barbell' },
+  { name: 'Guillotine press',      category: 'Chest',     equipment: 'Barbell, Rack' },
+  { name: 'Spoto press',           category: 'Chest',     equipment: 'Barbell, Rack' },
+  { name: 'Cable chest press',     category: 'Chest',     equipment: 'Cable machine' },
+  { name: 'Cable pullover',        category: 'Chest',     equipment: 'Cable machine' },
+  { name: 'DB pullover',           category: 'Chest',     equipment: 'Dumbbell, Bench' },
+  { name: 'Wide push-up',          category: 'Chest',     equipment: 'Bodyweight' },
+  { name: 'Diamond push-up',       category: 'Chest',     equipment: 'Bodyweight' },
+  { name: 'Decline push-up',       category: 'Chest',     equipment: 'Bodyweight' },
+  { name: 'Pike push-up',          category: 'Chest',     equipment: 'Bodyweight' },
+  { name: 'Archer push-up',        category: 'Chest',     equipment: 'Bodyweight' },
 
   // Back
   { name: 'Deadlift',              category: 'Back',      equipment: 'Barbell' },
@@ -35,6 +45,12 @@ export const MOVEMENTS = [
   { name: 'Straight arm pulldown', category: 'Back',      equipment: 'Cable machine' },
   { name: 'Back extension',        category: 'Back',      equipment: 'Machine' },
   { name: 'Good morning',          category: 'Back',      equipment: 'Barbell' },
+  { name: 'Seal row',              category: 'Back',      equipment: 'Barbell' },
+  { name: 'Meadows row',           category: 'Back',      equipment: 'Dumbbell' },
+  { name: 'Prone incline row',     category: 'Back',      equipment: 'Dumbbell, Bench' },
+  { name: 'Single arm cable row',  category: 'Back',      equipment: 'Cable machine' },
+  { name: 'Inverted row',          category: 'Back',      equipment: 'Bodyweight' },
+  { name: 'Australian pull-up',    category: 'Back',      equipment: 'Bodyweight' },
 
   // Shoulders
   { name: 'OHP',                   category: 'Shoulders', equipment: 'Barbell' },
@@ -51,6 +67,7 @@ export const MOVEMENTS = [
   { name: 'Barbell shrug',         category: 'Shoulders', equipment: 'Barbell' },
   { name: 'DB shrug',              category: 'Shoulders', equipment: 'Dumbbell' },
   { name: 'Machine shoulder press',category: 'Shoulders', equipment: 'Machine' },
+  { name: 'Cable upright row',     category: 'Shoulders', equipment: 'Cable machine' },
 
   // Arms
   { name: 'Barbell curl',          category: 'Arms',      equipment: 'Barbell' },
@@ -70,6 +87,16 @@ export const MOVEMENTS = [
   { name: 'Cable tricep kickback', category: 'Arms',      equipment: 'Cable machine' },
   { name: 'Dips',                  category: 'Arms',      equipment: 'Parallel bars' },
   { name: 'Bench dip',             category: 'Arms',      equipment: 'Bench' },
+  { name: 'Reverse barbell curl',  category: 'Arms',      equipment: 'Barbell' },
+  { name: 'Zottman curl',          category: 'Arms',      equipment: 'Dumbbell' },
+  { name: 'Reverse DB curl',       category: 'Arms',      equipment: 'Dumbbell' },
+  { name: 'DB skull crusher',      category: 'Arms',      equipment: 'Dumbbell, Bench' },
+  { name: 'Tate press',            category: 'Arms',      equipment: 'Dumbbell, Bench' },
+  { name: 'Rope pushdown',         category: 'Arms',      equipment: 'Cable machine' },
+  { name: 'Rope curl',             category: 'Arms',      equipment: 'Cable machine' },
+  { name: 'Cable overhead tricep', category: 'Arms',      equipment: 'Cable machine' },
+  { name: 'Reverse cable curl',    category: 'Arms',      equipment: 'Cable machine' },
+  { name: 'Cable kickback',        category: 'Arms',      equipment: 'Cable machine' },
 
   // Legs
   { name: 'Squat',                 category: 'Legs',      equipment: 'Barbell, Rack' },
@@ -94,6 +121,17 @@ export const MOVEMENTS = [
   { name: 'DB calf raise',         category: 'Legs',      equipment: 'Dumbbell' },
   { name: 'Step-up',               category: 'Legs',      equipment: 'Dumbbell, Box' },
   { name: 'Goblet squat',          category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'Zercher squat',         category: 'Legs',      equipment: 'Barbell' },
+  { name: 'Deficit deadlift',      category: 'Legs',      equipment: 'Barbell' },
+  { name: 'DB Romanian DL',        category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'DB hip thrust',         category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'Lateral lunge',         category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'Curtsy lunge',          category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'Single leg DB deadlift',category: 'Legs',      equipment: 'Dumbbell' },
+  { name: 'Cable pull-through',    category: 'Legs',      equipment: 'Cable machine' },
+  { name: 'Pistol squat',          category: 'Legs',      equipment: 'Bodyweight' },
+  { name: 'Jump squat',            category: 'Legs',      equipment: 'Bodyweight' },
+  { name: 'Single leg glute bridge',category: 'Legs',     equipment: 'Bodyweight' },
 
   // Core
   { name: 'Plank',                 category: 'Core',      equipment: 'Bodyweight' },
