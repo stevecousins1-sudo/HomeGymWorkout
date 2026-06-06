@@ -1,4 +1,4 @@
-name: Deploy PocketBase (backup first)
+name: Deploy PocketBase
 
 on:
   push:
@@ -9,87 +9,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  backup-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Authenticate with PocketBase admin API
-        id: auth
-        run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "${{ secrets.PB_URL }}/api/admins/auth-with-password" \
-            -H "Content-Type: application/json" \
-            -d "{\"identity\":\"${{ secrets.PB_ADMIN_EMAIL }}\",\"password\":\"${{ secrets.PB_ADMIN_PASSWORD }}\"}")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | head -n-1)
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Auth failed (HTTP $HTTP_CODE): $BODY"
-            exit 1
-          fi
-          TOKEN=$(echo "$BODY" | jq -r '.token')
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "Auth successful"
-
-      - name: Create backup via PocketBase API
-        id: backup
-        run: |
-          BACKUP_NAME="pre-deploy-$(date -u +%Y%m%d-%H%M%S).zip"
-          echo "name=$BACKUP_NAME" >> $GITHUB_OUTPUT
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "${{ secrets.PB_URL }}/api/backups" \
-            -H "Authorization: ${{ steps.auth.outputs.token }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"$BACKUP_NAME\"}")
-          if [ "$HTTP_CODE" != "204" ]; then
-            echo "Backup creation failed (HTTP $HTTP_CODE)"
-            exit 1
-          fi
-          echo "Backup triggered: $BACKUP_NAME"
-
-      - name: Wait for backup to appear
-        run: |
-          BACKUP_NAME="${{ steps.backup.outputs.name }}"
-          for i in $(seq 1 24); do
-            FOUND=$(curl -s \
-              -H "Authorization: ${{ steps.auth.outputs.token }}" \
-              "${{ secrets.PB_URL }}/api/backups" \
-              | jq --arg name "$BACKUP_NAME" 'any(.[]; .key == $name)')
-            if [ "$FOUND" = "true" ]; then
-              echo "Backup confirmed: $BACKUP_NAME"
-              exit 0
-            fi
-            echo "Waiting... ($i/24)"
-            sleep 5
-          done
-          echo "Timed out waiting for backup"
-          exit 1
-
-      - name: Download backup from PocketBase
-        run: |
-          BACKUP_NAME="${{ steps.backup.outputs.name }}"
-          TOKEN="${{ steps.auth.outputs.token }}"
-          TOKEN_ENCODED=$(printf '%s' "$TOKEN" | jq -Rr @uri)
-          HTTP_CODE=$(curl -s -L -o /tmp/$BACKUP_NAME -w "%{http_code}" \
-            "${{ secrets.PB_URL }}/api/backups/$BACKUP_NAME?token=$TOKEN_ENCODED")
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Download failed (HTTP $HTTP_CODE)"
-            exit 1
-          fi
-          SIZE=$(wc -c < /tmp/$BACKUP_NAME)
-          echo "Downloaded $BACKUP_NAME ($SIZE bytes)"
-
-      - name: Upload backup to Cloudflare R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-        run: |
-          BACKUP_NAME="${{ steps.backup.outputs.name }}"
-          ENDPOINT="https://${{ secrets.CF_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-          aws s3 cp /tmp/$BACKUP_NAME "s3://${{ secrets.CF_R2_BUCKET }}/$BACKUP_NAME" \
-            --endpoint-url "$ENDPOINT"
-          echo "Uploaded $BACKUP_NAME to R2"
-
       - name: Trigger Render redeploy
         id: deploy
         run: |
