@@ -4,10 +4,51 @@
   margin: 0 auto;
 }
 
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 .heading {
   font-size: 22px;
   font-weight: 500;
-  margin-bottom: 16px;
+}
+
+.createBtn {
+  background: var(--brand);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin: 16px 0 8px;
+}
+
+.customPlanTag {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--brand-mid);
+  font-weight: 500;
+}
+
+.deletePlanBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--red);
+  border: 1.5px solid var(--red);
+  margin-top: 10px;
 }
 
 .activePlanCard {

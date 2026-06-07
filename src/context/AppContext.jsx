@@ -29,6 +29,7 @@ export function AppProvider({ children }) {
   const [restPrefs, setRestPrefsState] = useState({});
   const [customMovements, setCustomMovementsState] = useState([]);
   const [templates, setTemplatesState] = useState([]);
+  const [customPlans, setCustomPlansState] = useState([]);
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -48,6 +49,7 @@ export function AppProvider({ children }) {
         setRestPrefsState({});
         setCustomMovementsState([]);
         setTemplatesState([]);
+        setCustomPlansState([]);
       }
     });
     return unsub;
@@ -97,9 +99,10 @@ export function AppProvider({ children }) {
         setRestPrefsState(s.rest_prefs || {});
         setCustomMovementsState(s.custom_movements || []);
         setTemplatesState(s.templates || []);
+        setCustomPlansState(s.custom_plans || []);
       } else if (settingsRes.reason?.status === 404) {
         // First login — create default settings with empty history
-        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [], templates: [] });
+        await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [], templates: [], custom_plans: [] });
         setHistory([]);
       }
     } catch (e) {
@@ -220,6 +223,34 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const saveCustomPlan = useCallback((plan) => {
+    setCustomPlansState(prev => {
+      const updated = [...prev.filter(p => p.id !== plan.id), plan];
+      patchSettings({ custom_plans: updated });
+      return updated;
+    });
+  }, []);
+
+  const deleteCustomPlan = useCallback((id) => {
+    setCustomPlansState(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      patchSettings({ custom_plans: updated });
+      return updated;
+    });
+  }, []);
+
+  const updatePlanDayTemplate = useCallback((dayName, exerciseStrings) => {
+    setActivePlanState(prev => {
+      if (!prev || !prev.isCustom) return prev;
+      const updated = {
+        ...prev,
+        exerciseTemplates: { ...prev.exerciseTemplates, [dayName]: exerciseStrings },
+      };
+      patchSettings({ active_plan: updated });
+      return updated;
+    });
+  }, []);
+
   const setGlobalUnit = useCallback((unit) => {
     setGlobalUnitState(unit);
     patchSettings({ global_unit: unit });
@@ -261,6 +292,10 @@ export function AppProvider({ children }) {
       templates,
       saveTemplate,
       deleteTemplate,
+      customPlans,
+      saveCustomPlan,
+      deleteCustomPlan,
+      updatePlanDayTemplate,
       setUnitPref,
       setGlobalUnit,
       setRestPref,

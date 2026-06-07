@@ -14,6 +14,7 @@ export default function PlanModal({ plan, onClose }) {
       planName: plan.name,
       startDate,
       schedule,
+      ...(plan.isCustom ? { isCustom: true, exerciseTemplates: plan.exerciseTemplates } : {}),
     });
     onClose();
   }

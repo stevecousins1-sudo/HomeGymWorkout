@@ -6,6 +6,13 @@ import { getExercisesForDay } from '../../data/exercises';
 import { formatDate, getGreeting, todayISO } from '../../utils';
 import styles from './Today.module.css';
 
+function getTodayExercises(activePlan, dayName) {
+  if (activePlan?.isCustom && activePlan.exerciseTemplates?.[dayName]) {
+    return activePlan.exerciseTemplates[dayName];
+  }
+  return getExercisesForDay(dayName);
+}
+
 const QUICK_STARTS = [
   { name: 'Push & Pull', desc: 'Chest, back, shoulders', dayName: 'Push A' },
   { name: 'Legs & Core', desc: 'Quads, hamstrings, abs', dayName: 'Legs A' },
@@ -13,7 +20,7 @@ const QUICK_STARTS = [
 ];
 
 export default function Today() {
-  const { activePlan, markScheduleEntry, user, logout } = useApp();
+  const { activePlan, markScheduleEntry, updatePlanDayTemplate, user, logout } = useApp();
   const [overlay, setOverlay] = useState(null);
   const today = todayISO();
 
@@ -29,8 +36,8 @@ export default function Today() {
     markScheduleEntry(today, 'skipped', true);
   }
 
-  function startOverlay(name, dayName) {
-    setOverlay({ name, dayName });
+  function startOverlay(name, dayName, exercises) {
+    setOverlay({ name, dayName, exercises });
   }
 
   return (
@@ -65,7 +72,7 @@ export default function Today() {
         )}
 
         {activePlan && todayEntry && !todayEntry.done && !todayEntry.skipped && (() => {
-          const exercises = getExercisesForDay(todayEntry.dayName);
+          const exercises = getTodayExercises(activePlan, todayEntry.dayName);
           const preview = exercises.slice(0, 3);
           const more = exercises.length - 3;
           return (
@@ -80,7 +87,7 @@ export default function Today() {
                 {more > 0 && <li className={styles.more}>+ {more} more</li>}
               </ul>
               <div className={styles.actions}>
-                <button className={styles.btnPrimary} onClick={() => startOverlay(todayEntry.dayName, todayEntry.dayName)}>
+                <button className={styles.btnPrimary} onClick={() => startOverlay(todayEntry.dayName, todayEntry.dayName, activePlan?.isCustom ? exercises : undefined)}>
                   Start workout
                 </button>
                 <button className={styles.btnOutline} onClick={handleSkip}>Skip</button>
@@ -138,6 +145,12 @@ export default function Today() {
         <WorkoutOverlay
           workoutName={overlay.name}
           dayName={overlay.dayName}
+          exercises={overlay.exercises}
+          onComplete={(exerciseStrings, dayName) => {
+            if (activePlan?.isCustom && dayName) {
+              updatePlanDayTemplate(dayName, exerciseStrings);
+            }
+          }}
           onClose={() => setOverlay(null)}
         />
       )}

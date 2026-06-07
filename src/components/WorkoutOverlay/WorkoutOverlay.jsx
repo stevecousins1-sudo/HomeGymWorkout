@@ -51,7 +51,7 @@ function getExerciseHistory(exName, history, limit = 4) {
   return history.filter(h => h.exercises?.some(e => e.name === exName)).slice(0, limit);
 }
 
-export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onClose }) {
+export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onComplete, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
           restPrefs, setRestPref, history, customMovements } = useApp();
   const navigate = useNavigate();
@@ -371,16 +371,21 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       const entry = activePlan.schedule.find(e => e.date === today && !e.skipped);
       if (entry) markScheduleEntry(today, 'done', true);
     }
+    const exerciseData = exercises.map(ex => ({
+      name: ex.name, unit: units[ex.name],
+      sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
+      warmupSets: (ex.warmupSets ?? []).map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
+    }));
     addHistory({
       id: Date.now(), date: today, name: workoutName, dayName: dayName || workoutName,
       duration: elapsed, volume: Math.round(totalVolume), sets: totalSets,
       notes: sessionNotes,
-      exercises: exercises.map(ex => ({
-        name: ex.name, unit: units[ex.name],
-        sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
-        warmupSets: (ex.warmupSets ?? []).map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
-      })),
+      exercises: exerciseData,
     });
+    if (onComplete) {
+      const exerciseStrings = exercises.map(ex => `${ex.name} — ${ex.prescription}`);
+      onComplete(exerciseStrings, dayName || workoutName);
+    }
     onClose();
     navigate('/history');
   }

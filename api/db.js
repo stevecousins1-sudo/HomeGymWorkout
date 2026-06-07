@@ -39,6 +39,7 @@ async function initDb() {
     );
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS custom_movements JSONB DEFAULT '[]';
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS templates JSONB DEFAULT '[]';
+    ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS custom_plans JSONB DEFAULT '[]';
     ALTER TABLE history ADD COLUMN IF NOT EXISTS notes TEXT;
   `);
   console.log('Database ready');

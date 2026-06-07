@@ -17,20 +17,21 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates } = req.body;
+  const { active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates, custom_plans } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO user_settings (user_id, active_plan, unit_prefs, global_unit, rest_prefs, custom_movements, templates, custom_plans)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (user_id) DO UPDATE SET
          active_plan = EXCLUDED.active_plan,
          unit_prefs = EXCLUDED.unit_prefs,
          global_unit = EXCLUDED.global_unit,
          rest_prefs = EXCLUDED.rest_prefs,
          custom_movements = EXCLUDED.custom_movements,
-         templates = EXCLUDED.templates
+         templates = EXCLUDED.templates,
+         custom_plans = EXCLUDED.custom_plans
        RETURNING *`,
-      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {}), JSON.stringify(custom_movements || []), JSON.stringify(templates || [])]
+      [req.user.id, JSON.stringify(active_plan ?? null), JSON.stringify(unit_prefs || {}), global_unit || 'lb', JSON.stringify(rest_prefs || {}), JSON.stringify(custom_movements || []), JSON.stringify(templates || []), JSON.stringify(custom_plans || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -40,7 +41,7 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/', async (req, res) => {
-  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates'];
+  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates', 'custom_plans'];
   const updates = [];
   const values = [];
   let i = 1;
