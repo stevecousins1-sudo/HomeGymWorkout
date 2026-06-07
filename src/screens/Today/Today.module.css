@@ -4,6 +4,7 @@
   margin: 0 auto;
 }
 
+/* ── Header ─────────────────────────────────────────────────────────── */
 .greeting {
   font-size: 22px;
   font-weight: 500;
@@ -14,7 +15,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .date {
@@ -23,34 +24,60 @@
   margin-top: 2px;
 }
 
-.rightCol {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
 .signOutBtn {
   font-size: 13px;
   color: var(--text-hint);
   padding: 2px 0;
+  margin-top: 4px;
 }
 
 .signOutBtn:hover {
   color: var(--red);
 }
 
-.progress {
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: right;
+/* ── Plan progress bar ───────────────────────────────────────────────── */
+.planHeader {
+  margin-bottom: 16px;
 }
 
+.planHeaderTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.planName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.planSessions {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.planTrack {
+  height: 5px;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.planFill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+}
+
+/* ── Today card ─────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: 14px 14px 14px 18px;
   margin-bottom: 16px;
   position: relative;
   overflow: hidden;
@@ -66,19 +93,19 @@
 }
 
 .cardPurple::before { background: var(--brand); }
-.cardGreen::before { background: var(--green); }
-.cardGrey::before { background: var(--text-hint); }
+.cardGreen::before  { background: var(--green); }
+.cardGrey::before   { background: var(--text-hint); }
 
 .scheduledLabel {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--brand-text);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .cardTitle {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 2px;
@@ -133,12 +160,260 @@
   text-align: center;
 }
 
-.sectionTitle {
-  font-size: 13px;
-  font-weight: 500;
+/* ── Schedule strip ─────────────────────────────────────────────────── */
+.scheduleSection {
+  margin-bottom: 8px;
+}
+
+.scheduleSectionTitle {
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.4px;
   color: var(--text-secondary);
-  margin: 24px 0 12px;
+  margin-bottom: 10px;
+}
+
+.strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  margin: 0 -16px;
+  padding: 0 16px 8px;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.stripChip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border);
+  background: var(--bg-secondary);
+  min-width: 62px;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.stripChipToday {
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+
+.stripChipDone {
+  border-color: var(--green);
+  background: #f0faf4;
+}
+
+.stripChipSkipped {
+  border-color: var(--border);
+  background: var(--bg-secondary);
+  opacity: 0.6;
+}
+
+.stripChipPast {
+  opacity: 0.5;
+}
+
+.stripChipFuture {
+  border-color: var(--border);
+}
+
+.stripChipSelected {
+  border-color: var(--brand);
+  background: var(--brand-light);
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
+.stripDow {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.stripChipToday .stripDow,
+.stripChipSelected .stripDow {
+  color: var(--brand-mid);
+}
+
+.stripChipDone .stripDow {
+  color: var(--green-text);
+}
+
+.stripDay {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.stripChipToday .stripDay,
+.stripChipSelected .stripDay {
+  color: var(--brand-text);
+}
+
+.stripChipDone .stripDay {
+  color: var(--green-text);
+}
+
+.stripName {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 58px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stripChipToday .stripName,
+.stripChipSelected .stripName {
+  color: var(--brand-mid);
+}
+
+.stripBadge {
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.stripChipDone .stripBadge {
+  color: var(--green-text);
+}
+
+.stripChipSkipped .stripBadge {
+  color: var(--text-hint);
+}
+
+.stripDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-top: 2px;
+}
+
+/* ── Session preview card ────────────────────────────────────────────── */
+.previewCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+  animation: slideDown 0.18s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.previewTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.previewName {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.previewMeta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.previewClose {
+  font-size: 16px;
+  color: var(--text-hint);
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+.previewStatus {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.previewStatusDone {
+  background: #e8f7ee;
+  color: var(--green-text);
+}
+
+.previewStatusSkipped {
+  background: var(--bg-secondary);
+  color: var(--text-hint);
+}
+
+.previewExList {
+  list-style: none;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.previewEx {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.previewPrescription {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.previewStartBtn {
+  width: 100%;
+  background: var(--brand);
+  color: #fff;
+  padding: 11px;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.previewMissed {
+  font-size: 13px;
+  color: var(--text-hint);
+  font-style: italic;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Quick start ─────────────────────────────────────────────────────── */
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  margin: 20px 0 10px;
 }
 
 .quickGrid {
