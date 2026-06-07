@@ -62,8 +62,8 @@ export default function Today() {
     markScheduleEntry(today, 'skipped', true);
   }
 
-  function startOverlay(name, dayName, exercises) {
-    setOverlay({ name, dayName, exercises });
+  function startOverlay(name, dayName, exercises, isPlanWorkout = false) {
+    setOverlay({ name, dayName, exercises, isPlanWorkout });
     setPreviewEntry(null);
   }
 
@@ -136,7 +136,7 @@ export default function Today() {
               <div className={styles.actions}>
                 <button
                   className={styles.btnPrimary}
-                  onClick={() => startOverlay(todayEntry.dayName, todayEntry.dayName, activePlan?.isCustom ? exercises : undefined)}
+                  onClick={() => startOverlay(todayEntry.dayName, todayEntry.dayName, activePlan?.isCustom ? exercises : undefined, true)}
                 >
                   Start workout
                 </button>
@@ -239,7 +239,7 @@ export default function Today() {
                   {canStart && (
                     <button
                       className={styles.previewStartBtn}
-                      onClick={() => startOverlay(previewEntry.dayName, previewEntry.dayName, activePlan?.isCustom ? exercises : undefined)}
+                      onClick={() => startOverlay(previewEntry.dayName, previewEntry.dayName, activePlan?.isCustom ? exercises : undefined, true)}
                     >
                       {isToday ? 'Start workout' : 'Start early'}
                     </button>
@@ -275,6 +275,7 @@ export default function Today() {
           workoutName={overlay.name}
           dayName={overlay.dayName}
           exercises={overlay.exercises}
+          isPlanWorkout={!!overlay.isPlanWorkout}
           onComplete={(exerciseStrings, dayName) => {
             if (activePlan?.isCustom && dayName) {
               updatePlanDayTemplate(dayName, exerciseStrings);

@@ -7,6 +7,7 @@ import { MOVEMENTS } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
 import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
 import { calcPlates } from '../../lib/plates';
+import { padToMinDuration } from '../../lib/workoutPadder';
 import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
@@ -51,7 +52,7 @@ function getExerciseHistory(exName, history, limit = 4) {
   return history.filter(h => h.exercises?.some(e => e.name === exName)).slice(0, limit);
 }
 
-export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, onComplete, onClose }) {
+export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, onComplete, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
           restPrefs, setRestPref, history, customMovements } = useApp();
   const navigate = useNavigate();
@@ -64,7 +65,17 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const isBodyweight  = name => getMovement(name)?.equipment?.includes('Bodyweight') ?? false;
   const isBarbell     = name => getMovement(name)?.equipment?.toLowerCase().includes('barbell') ?? false;
 
-  const initList = () => exercisesProp ? buildExercises(exercisesProp) : buildExercises(dayName);
+  // Compute (and pad) the initial exercise string list once, reused by all state initialisers.
+  const _paddedStrings = useRef(null);
+  function getPaddedStrings() {
+    if (!_paddedStrings.current) {
+      const raw = exercisesProp ?? getExercisesForDay(dayName);
+      _paddedStrings.current = isPlanWorkout ? padToMinDuration(raw) : raw;
+    }
+    return _paddedStrings.current;
+  }
+
+  const initList = () => buildExercises(getPaddedStrings());
 
   const [exercises, setExercises]         = useState(initList);
   const [units, setUnits]                 = useState(() =>
