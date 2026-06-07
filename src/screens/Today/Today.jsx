@@ -1,10 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import { getExercisesForDay } from '../../data/exercises';
+import { MOVEMENTS } from '../../data/movements';
 import { formatDate, getGreeting, todayISO } from '../../utils';
 import styles from './Today.module.css';
+
+const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
+const MUSCLE_TARGETS = { Chest: 10, Back: 10, Legs: 10, Shoulders: 8, Arms: 6, Core: 6 };
+
+function getWeekDates() {
+  const today = new Date();
+  const dow = today.getDay();
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+}
 
 function getTodayExercises(activePlan, dayName) {
   if (activePlan?.isCustom && activePlan.exerciseTemplates?.[dayName]) {
@@ -26,7 +42,7 @@ const QUICK_STARTS = [
 ];
 
 export default function Today() {
-  const { activePlan, markScheduleEntry, updatePlanDayTemplate, user, logout } = useApp();
+  const { activePlan, markScheduleEntry, updatePlanDayTemplate, history, theme, setTheme, user, logout } = useApp();
   const [overlay, setOverlay] = useState(null);
   const [previewEntry, setPreviewEntry] = useState(null);
   const stripRef = useRef(null);
@@ -36,6 +52,22 @@ export default function Today() {
   const doneCount = activePlan?.schedule.filter(e => e.done).length ?? 0;
   const totalCount = activePlan?.schedule.length ?? 0;
   const progressPct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+
+  // Weekly volume per muscle group
+  const weeklyVolume = useMemo(() => {
+    const weekDates = new Set(getWeekDates());
+    const counts = {};
+    for (const entry of history) {
+      if (!weekDates.has(entry.date)) continue;
+      for (const ex of (entry.exercises || [])) {
+        const cat = MOV_CAT_MAP.get(ex.name.toLowerCase());
+        if (!cat) continue;
+        const done = (ex.sets || []).filter(s => s.done).length;
+        counts[cat] = (counts[cat] || 0) + done;
+      }
+    }
+    return counts;
+  }, [history]);
 
   const nextSession = activePlan?.schedule.find(
     e => !e.done && !e.skipped && e.date > today
@@ -88,9 +120,18 @@ export default function Today() {
             <div className={styles.greeting}>{getGreeting()}</div>
             <div className={styles.date}>{formatDate(today)}</div>
           </div>
-          <button className={styles.signOutBtn} onClick={logout} title={user?.email}>
-            Sign out
-          </button>
+          <div className={styles.headerActions}>
+            <button
+              className={styles.themeBtn}
+              onClick={() => setTheme(theme === 'dark' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'auto' : 'light') : theme === 'light' ? 'auto' : 'dark')}
+              title={`Theme: ${theme}`}
+            >
+              {theme === 'dark' ? '☀️' : theme === 'light' ? '🌙' : '🌓'}
+            </button>
+            <button className={styles.signOutBtn} onClick={logout} title={user?.email}>
+              Sign out
+            </button>
+          </div>
         </div>
 
         {/* ── No plan ─────────────────────────────────────────────────────── */}
@@ -252,6 +293,25 @@ export default function Today() {
             })()}
           </div>
         )}
+
+        {/* ── Weekly volume heatmap ────────────────────────────────────────── */}
+        <div className={styles.sectionTitle}>THIS WEEK'S VOLUME</div>
+        <div className={styles.heatmapGrid}>
+          {Object.entries(MUSCLE_TARGETS).map(([muscle, target]) => {
+            const sets = weeklyVolume[muscle] || 0;
+            const pct = Math.min(1, sets / target);
+            const color = sets === 0 ? 'var(--red)' : sets >= target ? 'var(--green)' : 'var(--amber)';
+            return (
+              <div key={muscle} className={styles.heatmapCell}>
+                <div className={styles.heatmapBar}>
+                  <div className={styles.heatmapFill} style={{ height: `${pct * 100}%`, background: color }} />
+                </div>
+                <div className={styles.heatmapSets} style={{ color }}>{sets}</div>
+                <div className={styles.heatmapLabel}>{muscle}</div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* ── Quick start ──────────────────────────────────────────────────── */}
         <div className={styles.sectionTitle}>QUICK START</div>

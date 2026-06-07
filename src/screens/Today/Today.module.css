@@ -24,11 +24,24 @@
   margin-top: 2px;
 }
 
+.headerActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.themeBtn {
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px;
+}
+
 .signOutBtn {
   font-size: 13px;
   color: var(--text-hint);
   padding: 2px 0;
-  margin-top: 4px;
 }
 
 .signOutBtn:hover {
@@ -405,6 +418,53 @@
   font-style: italic;
   text-align: center;
   padding: 4px 0;
+}
+
+/* ── Volume heatmap ──────────────────────────────────────────────────── */
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.heatmapCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmapBar {
+  width: 100%;
+  height: 48px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.heatmapFill {
+  width: 100%;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height 0.4s ease;
+  opacity: 0.85;
+}
+
+.heatmapSets {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.heatmapLabel {
+  font-size: 9px;
+  color: var(--text-hint);
+  text-align: center;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 /* ── Quick start ─────────────────────────────────────────────────────── */

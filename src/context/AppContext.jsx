@@ -30,6 +30,8 @@ export function AppProvider({ children }) {
   const [customMovements, setCustomMovementsState] = useState([]);
   const [templates, setTemplatesState] = useState([]);
   const [customPlans, setCustomPlansState] = useState([]);
+  const [theme, setThemeState] = useState(() => localStorage.getItem('gymTheme') || 'auto');
+  const [bodyWeightLog, setBodyWeightLogState] = useState([]);
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -50,6 +52,7 @@ export function AppProvider({ children }) {
         setCustomMovementsState([]);
         setTemplatesState([]);
         setCustomPlansState([]);
+        setBodyWeightLogState([]);
       }
     });
     return unsub;
@@ -100,6 +103,7 @@ export function AppProvider({ children }) {
         setCustomMovementsState(s.custom_movements || []);
         setTemplatesState(s.templates || []);
         setCustomPlansState(s.custom_plans || []);
+        setBodyWeightLogState(s.body_weight_log || []);
       } else if (settingsRes.reason?.status === 404) {
         // First login — create default settings with empty history
         await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [], templates: [], custom_plans: [] });
@@ -223,6 +227,21 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const setTheme = useCallback((t) => {
+    setThemeState(t);
+    localStorage.setItem('gymTheme', t);
+    patchSettings({ theme: t });
+  }, []);
+
+  const addBodyWeightEntry = useCallback(({ date, weight, unit }) => {
+    setBodyWeightLogState(prev => {
+      const filtered = prev.filter(e => e.date !== date);
+      const updated = [...filtered, { date, weight, unit }].sort((a, b) => a.date.localeCompare(b.date));
+      patchSettings({ body_weight_log: updated });
+      return updated;
+    });
+  }, []);
+
   const saveCustomPlan = useCallback((plan) => {
     setCustomPlansState(prev => {
       const updated = [...prev.filter(p => p.id !== plan.id), plan];
@@ -296,6 +315,10 @@ export function AppProvider({ children }) {
       saveCustomPlan,
       deleteCustomPlan,
       updatePlanDayTemplate,
+      theme,
+      setTheme,
+      bodyWeightLog,
+      addBodyWeightEntry,
       setUnitPref,
       setGlobalUnit,
       setRestPref,

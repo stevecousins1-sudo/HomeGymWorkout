@@ -1,10 +1,15 @@
 import { useState, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getExercisesForDay } from '../../data/exercises';
+import { MOVEMENTS } from '../../data/movements';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import ProgressChart from '../../components/ProgressChart/ProgressChart';
-import { formatDate, formatDuration, formatVolume } from '../../utils';
+import BodyWeightChart from '../../components/BodyWeightChart/BodyWeightChart';
+import { formatDate, formatDuration, formatVolume, todayISO } from '../../utils';
 import styles from './History.module.css';
+
+const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
+const CAT_ORDER = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 function parseExercise(str) {
   const parts = str.split(' — ');
@@ -24,14 +29,16 @@ function entryToExerciseStrings(entry) {
 }
 
 export default function History() {
-  const { history, importHistory } = useApp();
-  const [activeTab, setActiveTab]     = useState('history');
-  const [detail, setDetail]           = useState(null);
-  const [overlay, setOverlay]         = useState(null);
+  const { history, importHistory, bodyWeightLog, addBodyWeightEntry, globalUnit } = useApp();
+  const [activeTab, setActiveTab]       = useState('history');
+  const [detail, setDetail]             = useState(null);
+  const [overlay, setOverlay]           = useState(null);
   const [importStatus, setImportStatus] = useState(null);
-  const [exSearch, setExSearch]       = useState('');
-  const [selectedEx, setSelectedEx]   = useState(null);
-  const [exDropOpen, setExDropOpen]   = useState(false);
+  const [exSearch, setExSearch]         = useState('');
+  const [selectedEx, setSelectedEx]     = useState(null);
+  const [exDropOpen, setExDropOpen]     = useState(false);
+  const [bwInput, setBwInput]           = useState('');
+  const [bwDate, setBwDate]             = useState(todayISO());
   const fileInputRef = useRef(null);
 
   // All unique exercise names that appear in history
@@ -41,6 +48,37 @@ export default function History() {
       for (const ex of (h.exercises || [])) set.add(ex.name);
     }
     return [...set].sort();
+  }, [history]);
+
+  // All-time records grouped by muscle category
+  const groupedRecords = useMemo(() => {
+    const recs = {};
+    for (const entry of history) {
+      for (const ex of (entry.exercises || [])) {
+        if (!recs[ex.name]) recs[ex.name] = { weight: 0, rawWeight: 0, unit: ex.unit || 'lb', volume: 0 };
+        const exUnit = ex.unit || 'lb';
+        for (const s of (ex.sets || [])) {
+          if (!s.done) continue;
+          const w = parseFloat(s.weight) || 0;
+          const r = parseFloat(s.reps) || 0;
+          const wLb = exUnit === 'kg' ? w * 2.2046 : w;
+          if (wLb > recs[ex.name].weight) {
+            recs[ex.name] = { weight: wLb, rawWeight: w, unit: exUnit, volume: recs[ex.name].volume };
+          }
+          if (wLb * r > recs[ex.name].volume) recs[ex.name].volume = wLb * r;
+        }
+      }
+    }
+    const grouped = {};
+    for (const [name, rec] of Object.entries(recs)) {
+      const cat = MOV_CAT_MAP.get(name.toLowerCase()) || 'Other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push({ name, ...rec });
+    }
+    for (const cat of Object.keys(grouped)) {
+      grouped[cat].sort((a, b) => b.weight - a.weight);
+    }
+    return grouped;
   }, [history]);
 
   const filteredExNames = useMemo(() => {
@@ -241,14 +279,15 @@ export default function History() {
 
         {/* Tab bar */}
         <div className={styles.tabBar}>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'history' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('history')}
-          >History</button>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'progress' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('progress')}
-          >Progress</button>
+          {['history', 'progress', 'records', 'weight'].map(t => (
+            <button
+              key={t}
+              className={`${styles.tabBtn}${activeTab === t ? ' ' + styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab(t)}
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
         </div>
 
         {/* History tab */}
@@ -328,6 +367,82 @@ export default function History() {
                 ) : (
                   <div className={styles.chartPlaceholder}>Select an exercise to view progress</div>
                 )}
+              </>
+            )}
+          </div>
+        )}
+        {/* Records tab */}
+        {activeTab === 'records' && (
+          <div className={styles.recordsSection}>
+            {Object.keys(groupedRecords).length === 0 ? (
+              <div className={styles.empty}>Complete some workouts to see your records.</div>
+            ) : (
+              [...CAT_ORDER, 'Other'].filter(c => groupedRecords[c]).map(cat => (
+                <div key={cat} className={styles.recordGroup}>
+                  <div className={styles.recordGroupTitle}>{cat.toUpperCase()}</div>
+                  {groupedRecords[cat].map(rec => (
+                    <div key={rec.name} className={styles.recordRow}>
+                      <div className={styles.recordName}>{rec.name}</div>
+                      <div className={styles.recordBests}>
+                        {rec.rawWeight > 0 && (
+                          <span className={styles.recordBest}>
+                            🏆 {rec.rawWeight} {rec.unit}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Weight tab */}
+        {activeTab === 'weight' && (
+          <div className={styles.weightSection}>
+            <div className={styles.bwLogForm}>
+              <input
+                type="date"
+                className={styles.bwDateInput}
+                value={bwDate}
+                max={todayISO()}
+                onChange={e => setBwDate(e.target.value)}
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                className={styles.bwInput}
+                placeholder={`Weight (${globalUnit})`}
+                value={bwInput}
+                onChange={e => setBwInput(e.target.value)}
+              />
+              <button
+                className={styles.bwLogBtn}
+                disabled={!bwInput.trim()}
+                onClick={() => {
+                  if (!bwInput.trim()) return;
+                  addBodyWeightEntry({ date: bwDate, weight: parseFloat(bwInput), unit: globalUnit });
+                  setBwInput('');
+                }}
+              >
+                Log
+              </button>
+            </div>
+
+            {bodyWeightLog.length === 0 ? (
+              <div className={styles.empty}>No body weight entries yet.</div>
+            ) : (
+              <>
+                <BodyWeightChart log={bodyWeightLog} unit={globalUnit} />
+                <div className={styles.bwList}>
+                  {[...bodyWeightLog].reverse().slice(0, 20).map(e => (
+                    <div key={e.date} className={styles.bwEntry}>
+                      <span className={styles.bwEntryDate}>{formatDate(e.date)}</span>
+                      <span className={styles.bwEntryWeight}>{e.weight} {e.unit}</span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
@@ -230,6 +230,39 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setExercises(prev => prev.map((ex, i) => i !== exIdx ? ex : { ...ex, sets: [...ex.sets, makeSet()] }));
   }
 
+  function updateRPE(exIdx, setIdx, rpe) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei !== exIdx ? ex : { ...ex, sets: ex.sets.map((s, si) => si !== setIdx ? s : { ...s, rpe }) }
+    ));
+  }
+
+  function applyOverloadSuggestion(exIdx, weight) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map(s => s.done ? s : { ...s, weight: String(weight) }),
+      }
+    ));
+  }
+
+  function getSuggestion(exName, unit) {
+    const last = getLastSets(exName, history);
+    if (!last) return null;
+    const done = last.sets.filter(s => s.done);
+    if (!done.length) return null;
+    const maxW = Math.max(...done.map(s => parseFloat(s.weight) || 0));
+    if (maxW === 0) return null;
+    const fromUnit = last.unit || 'lb';
+    const converted = fromUnit === unit ? maxW : (
+      fromUnit === 'kg' && unit === 'lb' ? Math.round(maxW * 2.2046 * 4) / 4 :
+      Math.round(maxW / 2.2046 * 4) / 4
+    );
+    const mov = movMap.get(exName.toLowerCase());
+    const isCompound = mov?.equipment?.includes('Barbell');
+    const inc = unit === 'kg' ? (isCompound ? 2.5 : 1.25) : (isCompound ? 5 : 2.5);
+    return { suggested: converted + inc, inc, unit };
+  }
+
   function removeSet(exIdx, setIdx) {
     setExercises(prev => prev.map((ex, i) => {
       if (i !== exIdx || ex.sets.length <= 1) return ex;
@@ -429,62 +462,82 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const onRemove     = isWarmup ? () => removeWarmupSet(exIdx, setIdx) : () => removeSet(exIdx, setIdx);
 
     return (
-      <div key={key} className={styles.swipeWrapper}>
-        {canRemove && (
-          <div className={styles.deleteZone}>
-            <button className={styles.deleteBtn} onClick={onRemove}>Remove</button>
+      <Fragment key={key}>
+        <div className={styles.swipeWrapper}>
+          {canRemove && (
+            <div className={styles.deleteZone}>
+              <button className={styles.deleteBtn} onClick={onRemove}>Remove</button>
+            </div>
+          )}
+          <div
+            ref={el => { if (el) swipeRefs.current[key] = el; }}
+            className={[
+              styles.setRow,
+              set.done ? styles.done    : '',
+              isWarmup ? styles.warmupRow : '',
+              isFlash  ? styles.flashRow  : '',
+            ].filter(Boolean).join(' ')}
+            onTouchStart={e => swipeStart(e, key)}
+            onTouchMove={swipeMove}
+            onTouchEnd={() => swipeEnd(key, set.done)}
+            onClick={() => { if (isLocked) closeSwipe(key); }}
+          >
+            <div className={styles.setLabelCol}>
+              <span className={`${styles.setLabel}${isWarmup ? ' ' + styles.warmupLabel : ''}`}>{label}</span>
+              {!isWarmup && lastW && last?.reps && (
+                <span className={styles.lastHint}>{lastW} {unit} × {last.reps}</span>
+              )}
+            </div>
+            <input
+              className={styles.weightInput}
+              type="number" inputMode="decimal"
+              placeholder={lastW || '—'}
+              value={set.weight}
+              onChange={e => onUpdate(exIdx, setIdx, 'weight', e.target.value)}
+            />
+            <span className={styles.unitLabel}>{unit}</span>
+            <span className={styles.times}>×</span>
+            <button className={styles.repAdj} onClick={() => onAdjReps(exIdx, setIdx, -1)}>−</button>
+            <input
+              className={styles.repsInput}
+              type="number" inputMode="numeric"
+              placeholder={last?.reps || '—'}
+              value={set.reps}
+              onChange={e => onUpdate(exIdx, setIdx, 'reps', e.target.value)}
+            />
+            <button className={styles.repAdj} onClick={() => onAdjReps(exIdx, setIdx, 1)}>+</button>
+            <button
+              className={`${styles.completeBtn}${set.done ? ' ' + styles.done : ''}`}
+              onClick={() => onToggleDone(exIdx, setIdx)}
+            >
+              {set.done && (
+                <svg className={styles.checkIcon} viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+        {set.done && !isWarmup && (
+          <div className={styles.rpeBar}>
+            <span className={styles.rpeLabel}>RPE</span>
+            {[6, 7, 8, 9, 10].map(r => {
+              const color = r <= 7 ? 'var(--green)' : r <= 9 ? 'var(--amber)' : 'var(--red)';
+              return (
+                <button
+                  key={r}
+                  className={`${styles.rpeBtn}${set.rpe === r ? ' ' + styles.rpeBtnActive : ''}`}
+                  style={set.rpe === r ? { background: color, borderColor: color } : {}}
+                  onClick={() => updateRPE(exIdx, setIdx, set.rpe === r ? undefined : r)}
+                >
+                  {r}
+                </button>
+              );
+            })}
           </div>
         )}
-        <div
-          ref={el => { if (el) swipeRefs.current[key] = el; }}
-          className={[
-            styles.setRow,
-            set.done ? styles.done    : '',
-            isWarmup ? styles.warmupRow : '',
-            isFlash  ? styles.flashRow  : '',
-          ].filter(Boolean).join(' ')}
-          onTouchStart={e => swipeStart(e, key)}
-          onTouchMove={swipeMove}
-          onTouchEnd={() => swipeEnd(key, set.done)}
-          onClick={() => { if (isLocked) closeSwipe(key); }}
-        >
-          <div className={styles.setLabelCol}>
-            <span className={`${styles.setLabel}${isWarmup ? ' ' + styles.warmupLabel : ''}`}>{label}</span>
-            {!isWarmup && lastW && last?.reps && (
-              <span className={styles.lastHint}>{lastW} {unit} × {last.reps}</span>
-            )}
-          </div>
-          <input
-            className={styles.weightInput}
-            type="number" inputMode="decimal"
-            placeholder={lastW || '—'}
-            value={set.weight}
-            onChange={e => onUpdate(exIdx, setIdx, 'weight', e.target.value)}
-          />
-          <span className={styles.unitLabel}>{unit}</span>
-          <span className={styles.times}>×</span>
-          <button className={styles.repAdj} onClick={() => onAdjReps(exIdx, setIdx, -1)}>−</button>
-          <input
-            className={styles.repsInput}
-            type="number" inputMode="numeric"
-            placeholder={last?.reps || '—'}
-            value={set.reps}
-            onChange={e => onUpdate(exIdx, setIdx, 'reps', e.target.value)}
-          />
-          <button className={styles.repAdj} onClick={() => onAdjReps(exIdx, setIdx, 1)}>+</button>
-          <button
-            className={`${styles.completeBtn}${set.done ? ' ' + styles.done : ''}`}
-            onClick={() => onToggleDone(exIdx, setIdx)}
-          >
-            {set.done && (
-              <svg className={styles.checkIcon} viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
+      </Fragment>
     );
   }
 
@@ -539,6 +592,18 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                   <div>
                     <div className={styles.exerciseName}>{ex.name}</div>
                     {ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
+                    {(() => {
+                      const sug = getSuggestion(ex.name, units[ex.name]);
+                      if (!sug) return null;
+                      return (
+                        <button
+                          className={styles.overloadChip}
+                          onClick={() => applyOverloadSuggestion(exIdx, sug.suggested)}
+                        >
+                          ↑ Try {sug.suggested} {sug.unit} (+{sug.inc})
+                        </button>
+                      );
+                    })()}
                   </div>
                   <div className={styles.titleActions}>
                     <div className={styles.exUnitToggle}>

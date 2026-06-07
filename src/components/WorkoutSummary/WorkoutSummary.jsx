@@ -3,6 +3,25 @@ import { useApp } from '../../context/AppContext';
 import { formatTimer, formatVolume } from '../../utils';
 import styles from './WorkoutSummary.module.css';
 
+function buildShareText(workoutName, elapsed, exercises, units, totalVolume, prsHit) {
+  const lines = [
+    `💪 ${workoutName}`,
+    `⏱ ${formatTimer(elapsed)}  |  📦 ${formatVolume(totalVolume)} lb vol`,
+    '',
+  ];
+  exercises.forEach(ex => {
+    const unit = units[ex.name] || 'lb';
+    const doneSets = ex.sets.filter(s => s.done);
+    const maxW = doneSets.reduce((m, s) => Math.max(m, parseFloat(s.weight) || 0), 0);
+    lines.push(`• ${ex.name} — ${doneSets.length} sets${maxW > 0 ? ` @ ${maxW} ${unit}` : ''}`);
+  });
+  if (prsHit.length) {
+    lines.push('', '🏆 PRs: ' + prsHit.map(p => p.name).join(', '));
+  }
+  lines.push('', 'Logged with HomeGym Workout');
+  return lines.join('\n');
+}
+
 export default function WorkoutSummary({
   workoutName, elapsed, exercises, units, prsByExercise, notes, onSave, onDiscard,
 }) {
@@ -10,6 +29,7 @@ export default function WorkoutSummary({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateName, setTemplateName]     = useState(workoutName);
   const [templateSaved, setTemplateSaved]   = useState(false);
+  const [shareStatus, setShareStatus]       = useState(null); // null | 'copied'
 
   const doneSetsTotal = exercises.reduce((a, ex) => a + ex.sets.filter(s => s.done).length, 0);
 
@@ -39,6 +59,17 @@ export default function WorkoutSummary({
     return [{ name: ex.name, label: isWeightPR ? 'Weight PR 🏆' : 'Volume PR 🏆' }];
   });
 
+  async function handleShare() {
+    const text = buildShareText(workoutName, elapsed, exercises, units, totalVolume, prsHit);
+    if (navigator.share) {
+      try { await navigator.share({ title: workoutName, text }); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus(null), 2500);
+    }
+  }
+
   function handleSaveTemplate() {
     if (!templateName.trim()) return;
     saveTemplate({
@@ -57,6 +88,9 @@ export default function WorkoutSummary({
       <div className={styles.header}>
         <div className={styles.completedLabel}>Workout Complete</div>
         <div className={styles.workoutName}>{workoutName}</div>
+        <button className={styles.shareBtn} onClick={handleShare}>
+          {shareStatus === 'copied' ? '✓ Copied!' : '↑ Share'}
+        </button>
       </div>
 
       <div className={styles.scrollArea}>

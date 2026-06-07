@@ -29,6 +29,18 @@
   color: #fff;
 }
 
+.shareBtn {
+  margin-top: 12px;
+  padding: 7px 20px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
 .scrollArea {
   flex: 1;
   overflow-y: auto;

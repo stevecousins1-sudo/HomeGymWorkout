@@ -1,0 +1,20 @@
+.wrap {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.noData {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px 0;
+}

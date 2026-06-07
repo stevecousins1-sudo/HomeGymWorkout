@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import BottomNav from './components/BottomNav/BottomNav';
@@ -9,8 +10,23 @@ import History from './screens/History/History';
 import Auth from './screens/Auth/Auth';
 import styles from './App.module.css';
 
+// Apply saved theme immediately, before React renders, so there's no flash
+const _savedTheme = localStorage.getItem('gymTheme');
+if (_savedTheme && _savedTheme !== 'auto') {
+  document.documentElement.dataset.theme = _savedTheme;
+}
+
 function AppShell() {
-  const { user, loading, loadError, retryLoad } = useApp();
+  const { user, loading, loadError, retryLoad, theme } = useApp();
+
+  // Keep DOM attribute in sync whenever theme changes after login
+  useEffect(() => {
+    if (!theme || theme === 'auto') {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = theme;
+    }
+  }, [theme]);
 
   if (loading) {
     return (

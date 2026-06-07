@@ -41,14 +41,14 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/', async (req, res) => {
-  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates', 'custom_plans'];
+  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates', 'custom_plans', 'body_weight_log', 'theme'];
   const updates = [];
   const values = [];
   let i = 1;
   for (const key of allowed) {
     if (key in req.body) {
       updates.push(`${key} = $${i}`);
-      values.push(['global_unit'].includes(key) ? req.body[key] : JSON.stringify(req.body[key]));
+      values.push(['global_unit', 'theme'].includes(key) ? req.body[key] : JSON.stringify(req.body[key]));
       i++;
     }
   }
