@@ -41,7 +41,9 @@
     --border: rgba(255,255,255,0.1);
     --border-strong: rgba(255,255,255,0.2);
     --brand-light: #2a2760;
+    --brand-text: #b3aff5;
     --green-light: #0a2e22;
+    --green-text: #3dbb8e;
   }
 }
 
@@ -60,7 +62,9 @@ html, body, #root {
   --border: rgba(255,255,255,0.1);
   --border-strong: rgba(255,255,255,0.2);
   --brand-light: #2a2760;
+  --brand-text: #b3aff5;
   --green-light: #0a2e22;
+  --green-text: #3dbb8e;
 }
 [data-theme="light"] {
   --bg-primary: #ffffff;
