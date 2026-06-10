@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
+import MachinePrompt from '../../components/MachinePrompt/MachinePrompt';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
 import { formatDate, getGreeting, todayISO } from '../../utils';
@@ -42,9 +43,10 @@ const QUICK_STARTS = [
 ];
 
 export default function Today() {
-  const { activePlan, markScheduleEntry, updatePlanDayTemplate, history, theme, setTheme, user, logout } = useApp();
+  const { activePlan, markScheduleEntry, updatePlanDayTemplate, history, theme, setTheme, user, logout, hasMachines, setHasMachines } = useApp();
   const [overlay, setOverlay] = useState(null);
   const [previewEntry, setPreviewEntry] = useState(null);
+  const [pendingWorkout, setPendingWorkout] = useState(null);
   const stripRef = useRef(null);
   const today = todayISO();
 
@@ -95,8 +97,20 @@ export default function Today() {
   }
 
   function startOverlay(name, dayName, exercises, isPlanWorkout = false) {
-    setOverlay({ name, dayName, exercises, isPlanWorkout });
     setPreviewEntry(null);
+    if (hasMachines === null) {
+      setPendingWorkout({ name, dayName, exercises, isPlanWorkout });
+    } else {
+      setOverlay({ name, dayName, exercises, isPlanWorkout });
+    }
+  }
+
+  function handleMachineAnswer(answer) {
+    setHasMachines(answer);
+    if (pendingWorkout) {
+      setOverlay(pendingWorkout);
+      setPendingWorkout(null);
+    }
   }
 
   function handleStripTap(entry) {
@@ -330,12 +344,15 @@ export default function Today() {
         </div>
       </div>
 
+      {pendingWorkout && <MachinePrompt onAnswer={handleMachineAnswer} />}
+
       {overlay && (
         <WorkoutOverlay
           workoutName={overlay.name}
           dayName={overlay.dayName}
           exercises={overlay.exercises}
           isPlanWorkout={!!overlay.isPlanWorkout}
+          hasMachines={hasMachines !== false}
           onComplete={(exerciseStrings, dayName) => {
             if (activePlan?.isCustom && dayName) {
               updatePlanDayTemplate(dayName, exerciseStrings);

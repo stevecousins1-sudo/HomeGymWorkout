@@ -7,7 +7,7 @@ import styles from './PlanBuilder.module.css';
 const DAYS_OPTIONS = [2, 3, 4, 5, 6];
 const WEEKS_OPTIONS = [4, 8, 12, 16];
 
-const STEP_TITLES = ['Your goal', 'Focus areas', 'Days per week', 'Plan length', 'Review & name'];
+const STEP_TITLES = ['Your goal', 'Focus areas', 'Equipment', 'Days per week', 'Plan length', 'Review & name'];
 
 function autoName(goal, focus, days) {
   const goalObj = GOALS.find(g => g.id === goal);
@@ -16,11 +16,12 @@ function autoName(goal, focus, days) {
 }
 
 export default function PlanBuilder({ onClose }) {
-  const { setActivePlan, saveCustomPlan } = useApp();
+  const { setActivePlan, saveCustomPlan, setHasMachines } = useApp();
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(null);
   const [focus, setFocus] = useState([]);
+  const [builderHasMachines, setBuilderHasMachines] = useState(null);
   const [days, setDays] = useState(4);
   const [weeks, setWeeks] = useState(8);
   const [planName, setPlanName] = useState('');
@@ -35,14 +36,15 @@ export default function PlanBuilder({ onClose }) {
   }
 
   function handleNext() {
-    if (step === 1 && !nameEdited) {
+    if ((step === 1 || step === 3) && !nameEdited) {
       setPlanName(autoName(goal, focus, days));
     }
-    if (step === 2 && !nameEdited) {
-      setPlanName(autoName(goal, focus, days));
-    }
-    if (step === 3) {
-      const plan = buildCustomPlan({ goal, focus, daysPerWeek: days, weeks, name: planName || autoName(goal, focus, days) });
+    if (step === 4) {
+      const plan = buildCustomPlan({
+        goal, focus, daysPerWeek: days, weeks,
+        name: planName || autoName(goal, focus, days),
+        hasMachines: builderHasMachines !== false,
+      });
       setGeneratedPlan(plan);
       if (!nameEdited) setPlanName(plan.name);
     }
@@ -61,6 +63,8 @@ export default function PlanBuilder({ onClose }) {
   function handleStart() {
     const finalPlan = { ...generatedPlan, name: planName || generatedPlan.name };
     saveCustomPlan(finalPlan);
+    // setActivePlan resets hasMachines; set it back so first workout skips the prompt
+    setHasMachines(builderHasMachines !== false);
     const schedule = generateSchedule(finalPlan, startDate);
     setActivePlan({
       planId: finalPlan.id,
@@ -73,7 +77,9 @@ export default function PlanBuilder({ onClose }) {
     onClose();
   }
 
-  const canNext = step === 0 ? goal !== null : true;
+  const canNext = step === 0 ? goal !== null
+    : step === 2 ? builderHasMachines !== null
+    : true;
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -123,8 +129,32 @@ export default function PlanBuilder({ onClose }) {
           </div>
         )}
 
-        {/* Step 2: Days per week */}
+        {/* Step 2: Equipment */}
         {step === 2 && (
+          <div>
+            <div className={styles.stepSub}>Do you have access to gym machines?</div>
+            <div className={styles.stepSubHint}>e.g. leg press, pec deck, hack squat, cable machine</div>
+            <div className={styles.equipRow}>
+              <button
+                className={`${styles.equipBtn}${builderHasMachines === true ? ' ' + styles.equipBtnActive : ''}`}
+                onClick={() => setBuilderHasMachines(true)}
+              >
+                <div className={styles.equipBtnLabel}>Yes, I have machines</div>
+                <div className={styles.equipBtnHint}>All exercises available</div>
+              </button>
+              <button
+                className={`${styles.equipBtn}${builderHasMachines === false ? ' ' + styles.equipBtnActive : ''}`}
+                onClick={() => setBuilderHasMachines(false)}
+              >
+                <div className={styles.equipBtnLabel}>No, dumbbells &amp; cables</div>
+                <div className={styles.equipBtnHint}>Machine exercises replaced automatically</div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Days per week */}
+        {step === 3 && (
           <div>
             <div className={styles.stepSub}>How many days a week can you train?</div>
             <div className={styles.daysRow}>
@@ -142,8 +172,8 @@ export default function PlanBuilder({ onClose }) {
           </div>
         )}
 
-        {/* Step 3: Plan length */}
-        {step === 3 && (
+        {/* Step 4: Plan length */}
+        {step === 4 && (
           <div>
             <div className={styles.stepSub}>How many weeks should the plan run?</div>
             <div className={styles.weeksRow}>
@@ -161,8 +191,8 @@ export default function PlanBuilder({ onClose }) {
           </div>
         )}
 
-        {/* Step 4: Review */}
-        {step === 4 && generatedPlan && (
+        {/* Step 5: Review */}
+        {step === 5 && generatedPlan && (
           <div className={styles.review}>
             <div className={styles.nameField}>
               <label className={styles.nameLabel}>Plan name</label>
@@ -220,7 +250,7 @@ export default function PlanBuilder({ onClose }) {
           ) : (
             <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
           )}
-          {step < 4 ? (
+          {step < 5 ? (
             <button
               className={styles.nextBtn}
               disabled={!canNext}

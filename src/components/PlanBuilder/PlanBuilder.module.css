@@ -132,6 +132,57 @@
   color: var(--brand-text);
 }
 
+/* Equipment step */
+.stepSubHint {
+  font-size: 12px;
+  color: var(--text-hint);
+  text-align: center;
+  margin-top: -10px;
+  margin-bottom: 20px;
+}
+
+.equipRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.equipBtn {
+  width: 100%;
+  padding: 16px 14px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.equipBtnActive {
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+
+.equipBtnLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.equipBtnActive .equipBtnLabel {
+  color: var(--brand-text);
+}
+
+.equipBtnHint {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+.equipBtnActive .equipBtnHint {
+  color: var(--brand-mid);
+}
+
 /* Days step */
 .daysRow {
   display: flex;

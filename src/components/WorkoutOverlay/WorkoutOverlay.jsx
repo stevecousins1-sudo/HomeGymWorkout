@@ -8,6 +8,7 @@ import RestTimer from '../RestTimer/RestTimer';
 import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
 import { calcPlates } from '../../lib/plates';
 import { padToMinDuration } from '../../lib/workoutPadder';
+import { applyMachineSubs } from '../../data/machineSubs';
 import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
@@ -52,7 +53,7 @@ function getExerciseHistory(exName, history, limit = 4) {
   return history.filter(h => h.exercises?.some(e => e.name === exName)).slice(0, limit);
 }
 
-export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, onComplete, onClose }) {
+export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, hasMachines = true, onComplete, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
           restPrefs, setRestPref, history, customMovements } = useApp();
   const navigate = useNavigate();
@@ -69,7 +70,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const _paddedStrings = useRef(null);
   function getPaddedStrings() {
     if (!_paddedStrings.current) {
-      const raw = exercisesProp ?? getExercisesForDay(dayName);
+      let raw = exercisesProp ?? getExercisesForDay(dayName);
+      if (!hasMachines) raw = applyMachineSubs(raw);
       _paddedStrings.current = isPlanWorkout ? padToMinDuration(raw) : raw;
     }
     return _paddedStrings.current;

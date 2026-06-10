@@ -80,8 +80,9 @@ function equipScore(m, goal) {
   return 1;
 }
 
-function pickExercises(categories, focus, goal, count) {
-  const pool = MOVEMENTS.filter(m => categories.includes(m.category));
+function pickExercises(categories, focus, goal, count, hasMachines = true) {
+  let pool = MOVEMENTS.filter(m => categories.includes(m.category));
+  if (!hasMachines) pool = pool.filter(m => m.equipment !== 'Machine');
   const scored = pool.map(m => ({
     m,
     score: (focus.includes(m.category) ? 2 : 1) * equipScore(m, goal) + Math.random() * 0.4,
@@ -105,7 +106,7 @@ function prescribe(idx, goal) {
   return p.p2;
 }
 
-export function buildCustomPlan({ goal, focus, daysPerWeek, weeks, name }) {
+export function buildCustomPlan({ goal, focus, daysPerWeek, weeks, name, hasMachines = true }) {
   const split = SPLITS[daysPerWeek] || SPLITS[3];
   const patterns = split.pattern;
   const exCount = EX_COUNTS[goal] || 5;
@@ -125,7 +126,7 @@ export function buildCustomPlan({ goal, focus, daysPerWeek, weeks, name }) {
     const dayName = dayNames[i];
     if (exerciseTemplates[dayName]) continue; // same day name already built
     const cats = DAY_CATS[patterns[i]];
-    const exercises = pickExercises(cats, focus, goal, exCount);
+    const exercises = pickExercises(cats, focus, goal, exCount, hasMachines);
     exerciseTemplates[dayName] = exercises.map((ex, j) => `${ex.name} — ${prescribe(j, goal)}`);
   }
 

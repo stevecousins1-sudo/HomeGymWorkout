@@ -32,6 +32,7 @@ export function AppProvider({ children }) {
   const [customPlans, setCustomPlansState] = useState([]);
   const [theme, setThemeState] = useState(() => localStorage.getItem('gymTheme') || 'auto');
   const [bodyWeightLog, setBodyWeightLogState] = useState([]);
+  const [hasMachines, setHasMachinesState] = useState(null);
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -127,8 +128,11 @@ export function AppProvider({ children }) {
 
   const setActivePlan = useCallback((plan) => {
     setActivePlanState(plan);
+    setHasMachinesState(null); // re-ask machine question for each new plan
     patchSettings({ active_plan: plan });
   }, []);
+
+  const setHasMachines = useCallback((val) => setHasMachinesState(val), []);
 
   const cancelPlan = useCallback(() => {
     setActivePlanState(null);
@@ -323,6 +327,8 @@ export function AppProvider({ children }) {
       setGlobalUnit,
       setRestPref,
       markScheduleEntry,
+      hasMachines,
+      setHasMachines,
       retryLoad: loadUserData,
       logout,
     }}>
