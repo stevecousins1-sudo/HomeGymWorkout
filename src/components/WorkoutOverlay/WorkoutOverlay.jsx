@@ -98,11 +98,19 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [addFilter, setAddFilter]                   = useState('All');
   const [showSummary, setShowSummary]               = useState(false);
   const [sessionNotes, setSessionNotes]             = useState('');
+  const [dragIdx, setDragIdx]                       = useState(null);
+  const [dropLineIdx, setDropLineIdx]               = useState(null);
+  const [creatingExercise, setCreatingExercise]     = useState(false);
+  const [newExName, setNewExName]                   = useState('');
+  const [newExCategory, setNewExCategory]           = useState('Chest');
+  const [newExEquipment, setNewExEquipment]         = useState('Cable machine');
 
   const swipeRefs    = useRef({});
   const touchStartX  = useRef(0);
   const activeSwipeK = useRef(null);
   const audioCtxRef  = useRef(null);
+  const cardRefs     = useRef([]);
+  const dragActive   = useRef(null);
 
   function ensureAudioCtx() {
     if (audioCtxRef.current) return;
@@ -444,6 +452,72 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     if (window.confirm('Cancel workout? Progress will be lost.')) onClose();
   }
 
+  // ── Exercise drag-to-reorder ─────────────────────────────────────────────────
+  function startExerciseDrag(e, idx) {
+    e.preventDefault();
+    setDragIdx(idx);
+    setDropLineIdx(idx);
+    dragActive.current = { startIdx: idx, currentDropLine: idx };
+
+    const getY = ev => ev.touches ? ev.touches[0].clientY : ev.clientY;
+
+    const onMove = ev => {
+      if (!dragActive.current) return;
+      if (ev.cancelable) ev.preventDefault();
+      const y = getY(ev);
+      let dropLine = 0;
+      for (let i = 0; i < cardRefs.current.length; i++) {
+        const el = cardRefs.current[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (y > rect.top + rect.height / 2) dropLine = i + 1;
+      }
+      if (dropLine !== dragActive.current.currentDropLine) {
+        dragActive.current.currentDropLine = dropLine;
+        setDropLineIdx(dropLine);
+      }
+    };
+
+    const onEnd = () => {
+      if (!dragActive.current) return;
+      const from = dragActive.current.startIdx;
+      const dl   = dragActive.current.currentDropLine;
+      const to   = dl > from ? dl - 1 : dl;
+      if (from !== to) {
+        setExercises(prev => {
+          const next = [...prev];
+          const [item] = next.splice(from, 1);
+          next.splice(to, 0, item);
+          return next;
+        });
+      }
+      dragActive.current = null;
+      setDragIdx(null);
+      setDropLineIdx(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchend', onEnd);
+  }
+
+  // ── Create & add custom exercise ─────────────────────────────────────────────
+  function handleCreateExercise() {
+    const name = newExName.trim();
+    if (!name) return;
+    const movement = { name, category: newExCategory, equipment: newExEquipment.trim() || 'Cable machine' };
+    addCustomMovement(movement);
+    addExercise(movement);
+    setCreatingExercise(false);
+    setNewExName('');
+    setNewExEquipment('Cable machine');
+  }
+
   // ── Set row renderer ─────────────────────────────────────────────────────────
   function renderSetRow(exIdx, setIdx, set, isWarmup) {
     const ex     = exercises[exIdx];
@@ -587,11 +661,27 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           const maxWeight    = ex.sets.reduce((m, s) => Math.max(m, parseFloat(s.weight) || 0), 0);
           const plates       = isBarbell(ex.name) && maxWeight > 0 ? calcPlates(maxWeight, unit) : null;
 
+          const isDragging = dragIdx === exIdx;
+          const isDnDNoOp  = dragIdx !== null && (dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1);
+          const showDropBefore = !isDnDNoOp && dropLineIdx === exIdx && dragIdx !== null;
+
           return (
-            <div key={exIdx} className={styles.exerciseCard}>
+            <Fragment key={exIdx}>
+              {showDropBefore && <div className={styles.dropLine} />}
+              <div
+                ref={el => { cardRefs.current[exIdx] = el; }}
+                className={[styles.exerciseCard, isDragging ? styles.draggingCard : ''].filter(Boolean).join(' ')}
+              >
               <div className={styles.exerciseHeader}>
                 <div className={styles.exerciseTitleRow}>
-                  <div>
+                  <button
+                    className={styles.dragHandle}
+                    onMouseDown={e => startExerciseDrag(e, exIdx)}
+                    onTouchStart={e => startExerciseDrag(e, exIdx)}
+                  >
+                    ☰
+                  </button>
+                  <div className={styles.exerciseTitleInfo}>
                     <div className={styles.exerciseName}>{ex.name}</div>
                     {ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
                     {(() => {
@@ -691,9 +781,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
               )}
 
               <button className={styles.addSetBtn} onClick={() => addSet(exIdx)}>+ Add set</button>
-            </div>
+              </div>
+            </Fragment>
           );
         })}
+        {dragIdx !== null && !((dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1)) && dropLineIdx === exercises.length && (
+          <div className={styles.dropLine} />
+        )}
 
         <div className={styles.notesSection}>
           <label className={styles.notesLabel}>Session notes</label>
@@ -749,12 +843,48 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       {/* Add exercise sheet */}
       {addingExercise && (
         <>
-          <div className={styles.swapBackdrop} onClick={() => setAddingExercise(false)} />
+          <div className={styles.swapBackdrop} onClick={() => { setAddingExercise(false); setCreatingExercise(false); setNewExName(''); }} />
           <div className={styles.swapSheet}>
             <div className={styles.swapHeader}>
               <span className={styles.swapTitle}>Add exercise</span>
-              <button className={styles.swapClose} onClick={() => setAddingExercise(false)}>✕</button>
+              <button className={styles.swapClose} onClick={() => { setAddingExercise(false); setCreatingExercise(false); setNewExName(''); }}>✕</button>
             </div>
+
+            {creatingExercise ? (
+              <div className={styles.createForm}>
+                <input
+                  className={styles.createFormInput}
+                  value={newExName}
+                  onChange={e => setNewExName(e.target.value)}
+                  placeholder="Exercise name"
+                  autoFocus
+                />
+                <select
+                  className={styles.createFormSelect}
+                  value={newExCategory}
+                  onChange={e => setNewExCategory(e.target.value)}
+                >
+                  {MOV_CATEGORIES.filter(c => c !== 'All').map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <input
+                  className={styles.createFormInput}
+                  value={newExEquipment}
+                  onChange={e => setNewExEquipment(e.target.value)}
+                  placeholder="Equipment (e.g. Cable machine)"
+                />
+                <div className={styles.createFormBtns}>
+                  <button className={styles.createCancelBtn} onClick={() => { setCreatingExercise(false); setNewExName(''); }}>Cancel</button>
+                  <button className={styles.createConfirmBtn} onClick={handleCreateExercise} disabled={!newExName.trim()}>Create &amp; add</button>
+                </div>
+              </div>
+            ) : (
+              <button className={styles.createNewExBtn} onClick={() => setCreatingExercise(true)}>
+                + Create new exercise
+              </button>
+            )}
+
             <div className={styles.addFilterRow}>
               {MOV_CATEGORIES.map(cat => (
                 <button

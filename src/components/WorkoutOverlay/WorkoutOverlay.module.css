@@ -675,6 +675,126 @@
   color: var(--text-hint);
 }
 
+/* ── Exercise title info (flex child next to drag handle) ──── */
+.exerciseTitleInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Drag handle ───────────────────────────────────────────── */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-hint);
+  font-size: 17px;
+  cursor: grab;
+  flex-shrink: 0;
+  margin-right: 6px;
+  touch-action: none;
+  border-radius: var(--radius-sm);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* ── Dragging card ─────────────────────────────────────────── */
+.draggingCard {
+  opacity: 0.45;
+  transform: scale(0.985);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Drop line ─────────────────────────────────────────────── */
+.dropLine {
+  height: 2px;
+  background: var(--brand);
+  border-radius: 1px;
+  margin: 2px 0;
+}
+
+/* ── Create new exercise form ──────────────────────────────── */
+.createNewExBtn {
+  width: 100%;
+  padding: 13px 20px;
+  text-align: center;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.createForm {
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.createFormInput {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.createFormInput:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+.createFormSelect {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.createFormBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.createCancelBtn {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.createConfirmBtn {
+  flex: 2;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.createConfirmBtn:disabled {
+  opacity: 0.4;
+}
+
 /* ── Progressive overload chip ─────────────────────────────── */
 .overloadChip {
   display: inline-flex;
