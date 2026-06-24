@@ -712,10 +712,26 @@
 
 /* ── Drop line ─────────────────────────────────────────────── */
 .dropLine {
-  height: 2px;
+  height: 4px;
   background: var(--brand);
-  border-radius: 1px;
-  margin: 2px 0;
+  border-radius: 2px;
+  margin: 4px 0;
+  box-shadow: 0 0 8px rgba(127, 119, 221, 0.55);
+}
+
+/* ── Collapsed exercise header (no border when body is hidden) ─ */
+.exerciseHeaderCollapsed {
+  border-bottom: none;
+}
+
+/* ── Re-expand animation after drag drop ───────────────────── */
+@keyframes reexpand {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.reexpandContent {
+  animation: reexpand 0.2s ease-out;
 }
 
 /* ── Create new exercise form ──────────────────────────────── */

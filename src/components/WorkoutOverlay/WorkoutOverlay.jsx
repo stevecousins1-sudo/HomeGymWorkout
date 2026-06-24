@@ -104,6 +104,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [newExName, setNewExName]                   = useState('');
   const [newExCategory, setNewExCategory]           = useState('Chest');
   const [newExEquipment, setNewExEquipment]         = useState('Cable machine');
+  const [reexpanding, setReexpanding]               = useState(false);
 
   const swipeRefs    = useRef({});
   const touchStartX  = useRef(0);
@@ -494,6 +495,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       dragActive.current = null;
       setDragIdx(null);
       setDropLineIdx(null);
+      setReexpanding(true);
+      setTimeout(() => setReexpanding(false), 220);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('mouseup', onEnd);
@@ -662,8 +665,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           const plates       = isBarbell(ex.name) && maxWeight > 0 ? calcPlates(maxWeight, unit) : null;
 
           const isDragging = dragIdx === exIdx;
-          const isDnDNoOp  = dragIdx !== null && (dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1);
-          const showDropBefore = !isDnDNoOp && dropLineIdx === exIdx && dragIdx !== null;
+          const collapsedMode = dragIdx !== null;
+          const isDnDNoOp  = collapsedMode && (dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1);
+          const showDropBefore = !isDnDNoOp && dropLineIdx === exIdx && collapsedMode;
 
           return (
             <Fragment key={exIdx}>
@@ -672,7 +676,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 ref={el => { cardRefs.current[exIdx] = el; }}
                 className={[styles.exerciseCard, isDragging ? styles.draggingCard : ''].filter(Boolean).join(' ')}
               >
-              <div className={styles.exerciseHeader}>
+              <div className={[styles.exerciseHeader, collapsedMode ? styles.exerciseHeaderCollapsed : ''].filter(Boolean).join(' ')}>
                 <div className={styles.exerciseTitleRow}>
                   <button
                     className={styles.dragHandle}
@@ -683,8 +687,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                   </button>
                   <div className={styles.exerciseTitleInfo}>
                     <div className={styles.exerciseName}>{ex.name}</div>
-                    {ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
-                    {(() => {
+                    {!collapsedMode && ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
+                    {!collapsedMode && (() => {
                       const sug = getSuggestion(ex.name, units[ex.name]);
                       if (!sug) return null;
                       return (
@@ -697,90 +701,96 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                       );
                     })()}
                   </div>
-                  <div className={styles.titleActions}>
-                    <div className={styles.exUnitToggle}>
-                      <button className={`${styles.exUnitBtn}${unit === 'lb' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'lb')}>lb</button>
-                      <button className={`${styles.exUnitBtn}${unit === 'kg' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'kg')}>kg</button>
+                  {!collapsedMode && (
+                    <div className={styles.titleActions}>
+                      <div className={styles.exUnitToggle}>
+                        <button className={`${styles.exUnitBtn}${unit === 'lb' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'lb')}>lb</button>
+                        <button className={`${styles.exUnitBtn}${unit === 'kg' ? ' ' + styles.exUnitActive : ''}`} onClick={() => toggleUnit(exIdx, ex.name, 'kg')}>kg</button>
+                      </div>
+                      {exercises.length > 1 && (
+                        <button className={styles.deleteExBtn} onClick={() => deleteExercise(exIdx)}>✕</button>
+                      )}
                     </div>
-                    {exercises.length > 1 && (
-                      <button className={styles.deleteExBtn} onClick={() => deleteExercise(exIdx)}>✕</button>
+                  )}
+                </div>
+
+                {!collapsedMode && (
+                  <>
+                    <div className={styles.exerciseActions}>
+                      <div className={styles.restControl}>
+                        <span className={styles.restIcon}>⏱</span>
+                        <button className={styles.restAdj} onClick={() => adjustRest(ex.name, -REST_STEP)} disabled={restDur <= REST_MIN}>−</button>
+                        <span className={styles.restVal}>{restDur}s</span>
+                        <button className={styles.restAdj} onClick={() => adjustRest(ex.name, REST_STEP)} disabled={restDur >= REST_MAX}>+</button>
+                      </div>
+                      <div className={styles.actionBtns}>
+                        <button
+                          className={`${styles.actionBtn}${showWarmupUi ? ' ' + styles.actionBtnActive : ''}`}
+                          onClick={() => setWarmupPrompt(showWarmupUi ? null : { exIdx, count: 2 })}
+                        >Warmup</button>
+                        <button
+                          className={`${styles.actionBtn}${showHistory ? ' ' + styles.actionBtnActive : ''}`}
+                          onClick={() => toggleHistoryPanel(ex.name)}
+                        >📈</button>
+                        <button className={styles.actionBtn} onClick={() => setSwapIdx(exIdx)}>Swap ↕</button>
+                      </div>
+                    </div>
+                    {showWarmupUi && (
+                      <div className={styles.warmupPrompt}>
+                        <span className={styles.warmupPromptLabel}>Warmup sets:</span>
+                        <button className={styles.warmupAdj} onClick={() => setWarmupPrompt(p => ({ ...p, count: Math.max(1, p.count - 1) }))}>−</button>
+                        <span className={styles.warmupCount}>{warmupPrompt.count}</span>
+                        <button className={styles.warmupAdj} onClick={() => setWarmupPrompt(p => ({ ...p, count: Math.min(6, p.count + 1) }))}>+</button>
+                        <button className={styles.warmupAddBtn} onClick={() => { addWarmupSets(exIdx, warmupPrompt.count); setWarmupPrompt(null); }}>Add</button>
+                        <button className={styles.warmupCancelBtn} onClick={() => setWarmupPrompt(null)}>✕</button>
+                      </div>
                     )}
-                  </div>
-                </div>
-
-                <div className={styles.exerciseActions}>
-                  <div className={styles.restControl}>
-                    <span className={styles.restIcon}>⏱</span>
-                    <button className={styles.restAdj} onClick={() => adjustRest(ex.name, -REST_STEP)} disabled={restDur <= REST_MIN}>−</button>
-                    <span className={styles.restVal}>{restDur}s</span>
-                    <button className={styles.restAdj} onClick={() => adjustRest(ex.name, REST_STEP)} disabled={restDur >= REST_MAX}>+</button>
-                  </div>
-                  <div className={styles.actionBtns}>
-                    <button
-                      className={`${styles.actionBtn}${showWarmupUi ? ' ' + styles.actionBtnActive : ''}`}
-                      onClick={() => setWarmupPrompt(showWarmupUi ? null : { exIdx, count: 2 })}
-                    >Warmup</button>
-                    <button
-                      className={`${styles.actionBtn}${showHistory ? ' ' + styles.actionBtnActive : ''}`}
-                      onClick={() => toggleHistoryPanel(ex.name)}
-                    >📈</button>
-                    <button className={styles.actionBtn} onClick={() => setSwapIdx(exIdx)}>Swap ↕</button>
-                  </div>
-                </div>
-
-                {showWarmupUi && (
-                  <div className={styles.warmupPrompt}>
-                    <span className={styles.warmupPromptLabel}>Warmup sets:</span>
-                    <button className={styles.warmupAdj} onClick={() => setWarmupPrompt(p => ({ ...p, count: Math.max(1, p.count - 1) }))}>−</button>
-                    <span className={styles.warmupCount}>{warmupPrompt.count}</span>
-                    <button className={styles.warmupAdj} onClick={() => setWarmupPrompt(p => ({ ...p, count: Math.min(6, p.count + 1) }))}>+</button>
-                    <button className={styles.warmupAddBtn} onClick={() => { addWarmupSets(exIdx, warmupPrompt.count); setWarmupPrompt(null); }}>Add</button>
-                    <button className={styles.warmupCancelBtn} onClick={() => setWarmupPrompt(null)}>✕</button>
-                  </div>
+                  </>
                 )}
               </div>
 
-              {showHistory && (
-                <div className={styles.historyPanel}>
-                  <div className={styles.historyPanelTitle}>PREVIOUS SESSIONS</div>
-                  {exHistory.length === 0
-                    ? <div className={styles.historyEmpty}>No previous sessions recorded</div>
-                    : exHistory.map((session, si) => {
-                        const sx    = session.exercises?.find(e => e.name === ex.name);
-                        const sUnit = sx?.unit || 'lb';
-                        const done  = sx?.sets?.filter(s => s.done) ?? [];
-                        return (
-                          <div key={si} className={styles.historySession}>
-                            <div className={styles.historyDate}>{formatDate(session.date)}</div>
-                            {done.length === 0
-                              ? <div className={styles.historySetRow}>No sets recorded</div>
-                              : done.map((s, di) => (
-                                  <div key={di} className={styles.historySetRow}>
-                                    <span className={styles.historySetNum}>Set {di + 1}</span>
-                                    <span className={styles.historySetData}>{s.weight || '—'} {sUnit} × {s.reps || '—'} reps</span>
-                                  </div>
-                                ))
-                            }
-                          </div>
-                        );
-                      })
-                  }
+              {!collapsedMode && (
+                <div className={reexpanding ? styles.reexpandContent : ''}>
+                  {showHistory && (
+                    <div className={styles.historyPanel}>
+                      <div className={styles.historyPanelTitle}>PREVIOUS SESSIONS</div>
+                      {exHistory.length === 0
+                        ? <div className={styles.historyEmpty}>No previous sessions recorded</div>
+                        : exHistory.map((session, si) => {
+                            const sx    = session.exercises?.find(e => e.name === ex.name);
+                            const sUnit = sx?.unit || 'lb';
+                            const done  = sx?.sets?.filter(s => s.done) ?? [];
+                            return (
+                              <div key={si} className={styles.historySession}>
+                                <div className={styles.historyDate}>{formatDate(session.date)}</div>
+                                {done.length === 0
+                                  ? <div className={styles.historySetRow}>No sets recorded</div>
+                                  : done.map((s, di) => (
+                                      <div key={di} className={styles.historySetRow}>
+                                        <span className={styles.historySetNum}>Set {di + 1}</span>
+                                        <span className={styles.historySetData}>{s.weight || '—'} {sUnit} × {s.reps || '—'} reps</span>
+                                      </div>
+                                    ))
+                                }
+                              </div>
+                            );
+                          })
+                      }
+                    </div>
+                  )}
+                  {warmupSets.map((set, si) => renderSetRow(exIdx, si, set, true))}
+                  {ex.sets.map((set, si) => renderSetRow(exIdx, si, set, false))}
+                  {plates && plates.length > 0 && (
+                    <div className={styles.platePanel}>
+                      <span className={styles.platePanelLabel}>Each side:</span>
+                      {plates.map(({ plate, count }) => (
+                        <span key={plate} className={styles.plateChip}>{count}×{plate}</span>
+                      ))}
+                    </div>
+                  )}
+                  <button className={styles.addSetBtn} onClick={() => addSet(exIdx)}>+ Add set</button>
                 </div>
               )}
-
-              {warmupSets.map((set, si) => renderSetRow(exIdx, si, set, true))}
-              {ex.sets.map((set, si) => renderSetRow(exIdx, si, set, false))}
-
-              {plates && plates.length > 0 && (
-                <div className={styles.platePanel}>
-                  <span className={styles.platePanelLabel}>Each side:</span>
-                  {plates.map(({ plate, count }) => (
-                    <span key={plate} className={styles.plateChip}>{count}×{plate}</span>
-                  ))}
-                </div>
-              )}
-
-              <button className={styles.addSetBtn} onClick={() => addSet(exIdx)}>+ Add set</button>
               </div>
             </Fragment>
           );
