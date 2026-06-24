@@ -71,6 +71,9 @@
   border-radius: var(--radius-lg);
   margin-bottom: 12px;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .exerciseHeader {
