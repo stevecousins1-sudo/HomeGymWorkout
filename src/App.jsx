@@ -17,7 +17,7 @@ if (_savedTheme && _savedTheme !== 'auto') {
 }
 
 function AppShell() {
-  const { user, loading, loadError, retryLoad, theme } = useApp();
+  const { user, loading, loadError, retryLoad, theme, syncState, retrySync } = useApp();
 
   // Keep DOM attribute in sync whenever theme changes after login
   useEffect(() => {
@@ -44,6 +44,18 @@ function AppShell() {
         <div className={styles.errorBanner}>
           Could not reach the server — your data may not have loaded.{' '}
           <button className={styles.retryBtn} onClick={retryLoad}>Retry</button>
+        </div>
+      )}
+      {syncState?.pendingWorkouts > 0 && (
+        <div className={styles.syncBanner}>
+          <span className={styles.syncDot} />
+          <span className={styles.syncText}>
+            {syncState.pendingWorkouts} workout{syncState.pendingWorkouts > 1 ? 's' : ''} saved on this device,
+            {syncState.syncing ? ' syncing…' : ' waiting to sync.'}
+          </span>
+          {!syncState.syncing && (
+            <button className={styles.syncRetryBtn} onClick={retrySync}>Sync now</button>
+          )}
         </div>
       )}
       <main className={styles.content}>

@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { authStore, auth, historyApi, settingsApi } from '../lib/api';
+import { enqueue, flush, subscribe as subscribeOutbox, onOpSynced, onOpFailed } from '../lib/outbox';
 
 const AppContext = createContext(null);
 
@@ -18,6 +19,12 @@ function recordToEntry(r) {
   };
 }
 
+let clientSeq = 0;
+function nextClientId() {
+  clientSeq += 1;
+  return `local_${Date.now()}_${clientSeq}`;
+}
+
 export function AppProvider({ children }) {
   const [user, setUser] = useState(() => authStore.model);
   const [loading, setLoading] = useState(true);
@@ -33,6 +40,7 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem('gymTheme') || 'auto');
   const [bodyWeightLog, setBodyWeightLogState] = useState([]);
   const [hasMachines, setHasMachinesState] = useState(null);
+  const [syncState, setSyncState] = useState({ pending: 0, pendingWorkouts: 0, syncing: false, lastError: null });
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -57,6 +65,25 @@ export function AppProvider({ children }) {
       }
     });
     return unsub;
+  }, []);
+
+  // Mirror the outbox into React state, and reconcile optimistic rows once
+  // their queued write actually lands on the server.
+  useEffect(() => {
+    const unsubState = subscribeOutbox(setSyncState);
+    const unsubSynced = onOpSynced((op, result) => {
+      if (op.kind !== 'history.create' || !result) return;
+      setHistory(prev => prev.map(h =>
+        h.clientId === op.meta?.clientId ? { ...recordToEntry(result), clientId: op.meta.clientId } : h
+      ));
+    });
+    const unsubFailed = onOpFailed((op) => {
+      if (op.kind !== 'history.create') return;
+      setHistory(prev => prev.map(h =>
+        h.clientId === op.meta?.clientId ? { ...h, pending: false, syncFailed: true } : h
+      ));
+    });
+    return () => { unsubState(); unsubSynced(); unsubFailed(); };
   }, []);
 
   useEffect(() => {
@@ -92,7 +119,14 @@ export function AppProvider({ children }) {
       }
 
       if (histRes.status === 'fulfilled') {
-        setHistory(histRes.value.map(recordToEntry));
+        const serverEntries = histRes.value.map(recordToEntry);
+        // Workouts still sitting in the outbox aren't on the server yet —
+        // keep them on screen instead of letting the fetch erase them.
+        setHistory(prev => {
+          const unsynced = prev.filter(h => h.pending || h.syncFailed);
+          if (!unsynced.length) return serverEntries;
+          return [...unsynced, ...serverEntries].sort((a, b) => b.date.localeCompare(a.date));
+        });
       }
 
       if (settingsRes.status === 'fulfilled') {
@@ -115,15 +149,13 @@ export function AppProvider({ children }) {
       setLoadError(true);
     } finally {
       setLoading(false);
+      flush(); // push anything queued from a previous offline session
     }
   }
 
-  async function patchSettings(patch) {
-    try {
-      await settingsApi.patch(patch);
-    } catch (e) {
-      console.error('Failed to save settings:', e);
-    }
+  // Settings go through the outbox so a patch made offline still lands later.
+  function patchSettings(patch) {
+    enqueue('settings.patch', patch);
   }
 
   const setActivePlan = useCallback((plan) => {
@@ -139,24 +171,22 @@ export function AppProvider({ children }) {
     patchSettings({ active_plan: null });
   }, []);
 
-  const addHistory = useCallback(async (entry) => {
-    const tempId = `temp_${Date.now()}`;
-    setHistory(prev => [{ ...entry, id: tempId }, ...prev]);
-    try {
-      const record = await historyApi.create({
-        entry_date: entry.date,
-        name: entry.name,
-        day_name: entry.dayName,
-        duration: entry.duration,
-        volume: entry.volume,
-        sets: entry.sets,
-        exercises: entry.exercises || [],
-        notes: entry.notes || null,
-      });
-      setHistory(prev => prev.map(h => h.id === tempId ? recordToEntry(record) : h));
-    } catch (e) {
-      console.error('Failed to save workout:', e);
-    }
+  // The workout is committed to the outbox synchronously, so finishing a
+  // session can never fail — the set data is durable before the network is
+  // ever involved.
+  const addHistory = useCallback((entry) => {
+    const clientId = nextClientId();
+    setHistory(prev => [{ ...entry, id: clientId, clientId, pending: true }, ...prev]);
+    enqueue('history.create', {
+      entry_date: entry.date,
+      name: entry.name,
+      day_name: entry.dayName,
+      duration: entry.duration,
+      volume: entry.volume,
+      sets: entry.sets,
+      exercises: entry.exercises || [],
+      notes: entry.notes || null,
+    }, { clientId });
   }, []);
 
   const importHistory = useCallback(async (entries) => {
@@ -330,6 +360,8 @@ export function AppProvider({ children }) {
       hasMachines,
       setHasMachines,
       retryLoad: loadUserData,
+      syncState,
+      retrySync: flush,
       logout,
     }}>
       {children}
