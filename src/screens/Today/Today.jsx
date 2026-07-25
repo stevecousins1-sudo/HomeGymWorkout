@@ -6,6 +6,7 @@ import MachinePrompt from '../../components/MachinePrompt/MachinePrompt';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
 import { formatDate, getGreeting, todayISO } from '../../utils';
+import { loadDraft, clearDraft } from '../../lib/draft';
 import styles from './Today.module.css';
 
 const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
@@ -47,6 +48,13 @@ export default function Today() {
   const [overlay, setOverlay] = useState(null);
   const [previewEntry, setPreviewEntry] = useState(null);
   const [pendingWorkout, setPendingWorkout] = useState(null);
+  // A session interrupted by a reload, a crash or an OS eviction. Its age is
+  // stamped once on load rather than recomputed on every render.
+  const [resumable, setResumable] = useState(() => {
+    const d = loadDraft();
+    if (!d) return null;
+    return { ...d, ageMin: Math.round((Date.now() - (d.startedAt || Date.now())) / 60000) };
+  });
   const stripRef = useRef(null);
   const today = todayISO();
 
@@ -94,6 +102,22 @@ export default function Today() {
 
   function handleSkip() {
     markScheduleEntry(today, 'skipped', true);
+  }
+
+  function resumeWorkout() {
+    setOverlay({
+      name: resumable.workoutName,
+      dayName: resumable.dayName,
+      exercises: resumable.exercises.map(ex => `${ex.name} — ${ex.prescription}`),
+      isPlanWorkout: resumable.isPlanWorkout,
+      draft: resumable,
+    });
+    setResumable(null);
+  }
+
+  function discardResumable() {
+    clearDraft();
+    setResumable(null);
   }
 
   function startOverlay(name, dayName, exercises, isPlanWorkout = false) {
@@ -147,6 +171,27 @@ export default function Today() {
             </button>
           </div>
         </div>
+
+        {/* ── Interrupted session ─────────────────────────────────────────── */}
+        {resumable && !overlay && (() => {
+          const setsDone = resumable.exercises.reduce(
+            (a, ex) => a + (ex.sets || []).filter(s => s.done).length, 0
+          );
+          const mins = resumable.ageMin;
+          return (
+            <div className={`${styles.card} ${styles.cardPurple}`}>
+              <div className={styles.scheduledLabel}>WORKOUT IN PROGRESS</div>
+              <div className={styles.cardTitle}>{resumable.workoutName}</div>
+              <div className={styles.cardMeta}>
+                {setsDone} set{setsDone === 1 ? '' : 's'} logged · started {mins < 1 ? 'just now' : `${mins} min ago`}
+              </div>
+              <div className={styles.actions}>
+                <button className={styles.btnPrimary} onClick={resumeWorkout}>Resume</button>
+                <button className={styles.btnOutline} onClick={discardResumable}>Discard</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── No plan ─────────────────────────────────────────────────────── */}
         {!activePlan && (
@@ -353,6 +398,7 @@ export default function Today() {
           exercises={overlay.exercises}
           isPlanWorkout={!!overlay.isPlanWorkout}
           hasMachines={hasMachines !== false}
+          draft={overlay.draft}
           onComplete={(exerciseStrings, dayName) => {
             if (activePlan?.isCustom && dayName) {
               updatePlanDayTemplate(dayName, exerciseStrings);

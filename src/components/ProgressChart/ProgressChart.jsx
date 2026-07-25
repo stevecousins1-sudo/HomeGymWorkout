@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { e1rmSeries, fromLb } from '../../lib/strength';
 import styles from './ProgressChart.module.css';
 
 function shortDate(iso) {
@@ -9,23 +10,19 @@ function shortDate(iso) {
 export default function ProgressChart({ exerciseName, history }) {
   const [tooltip, setTooltip] = useState(null);
 
-  const dataPoints = useMemo(() => {
-    const sessions = history
-      .filter(h => h.exercises?.some(e => e.name === exerciseName))
-      .slice(0, 12)
-      .reverse();
-
-    return sessions.map(session => {
-      const ex   = session.exercises.find(e => e.name === exerciseName);
-      const unit = ex?.unit || 'lb';
-      const best = (ex?.sets || [])
-        .filter(s => s.done && s.weight)
-        .reduce((max, s) => {
-          const wLb = unit === 'kg' ? parseFloat(s.weight) * 2.2046 : parseFloat(s.weight);
-          return Math.max(max, wLb || 0);
-        }, 0);
-      return { date: session.date, weight: Math.round(best * 10) / 10 };
-    }).filter(p => p.weight > 0);
+  // Plot estimated 1RM rather than heaviest weight: it accounts for reps, so
+  // a set of 8 that beats last week's set of 5 shows up as the progress it is.
+  const { dataPoints, unit } = useMemo(() => {
+    const series = e1rmSeries(exerciseName, history, 12);
+    const u = series[series.length - 1]?.unit || 'lb';
+    return {
+      unit: u,
+      dataPoints: series.map(p => ({
+        date: p.date,
+        weight: Math.round(fromLb(p.e1rm, u) * 10) / 10,
+        source: p.weight > 0 && p.reps > 0 ? `${p.weight} × ${p.reps}` : null,
+      })),
+    };
   }, [exerciseName, history]);
 
   if (dataPoints.length < 2) {
@@ -100,17 +97,25 @@ export default function ProgressChart({ exerciseName, history }) {
           const tx   = xPos(tooltip.i);
           const ty   = yPos(tooltip.p.weight);
           const flip = tx > W * 0.6;
-          const rx   = flip ? tx - 88 : tx + 10;
+          const rx   = flip ? tx - 98 : tx + 10;
           return (
             <g>
-              <rect x={rx} y={ty - 26} width="78" height="38" rx="6"
+              <rect x={rx} y={ty - 30} width="88" height={tooltip.p.source ? 56 : 42} rx="6"
                 fill="var(--bg-primary)" stroke="var(--border)" strokeWidth="1" />
-              <text x={rx + 39} y={ty - 10} textAnchor="middle" fontSize="10" fill="var(--text-secondary)">
+              <text x={rx + 44} y={ty - 15} textAnchor="middle" fontSize="10" fill="var(--text-secondary)">
                 {shortDate(tooltip.p.date)}
               </text>
-              <text x={rx + 39} y={ty + 6} textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--text-primary)">
-                {tooltip.p.weight} lb
+              <text x={rx + 44} y={ty + 1} textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--text-primary)">
+                {tooltip.p.weight} {unit}
               </text>
+              <text x={rx + 44} y={ty + 13} textAnchor="middle" fontSize="8.5" fill="var(--text-hint)">
+                est. 1RM
+              </text>
+              {tooltip.p.source && (
+                <text x={rx + 44} y={ty + 24} textAnchor="middle" fontSize="9" fill="var(--text-hint)">
+                  {tooltip.p.source} {unit}
+                </text>
+              )}
             </g>
           );
         })()}

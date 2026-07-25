@@ -6,6 +6,7 @@ import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import ProgressChart from '../../components/ProgressChart/ProgressChart';
 import BodyWeightChart from '../../components/BodyWeightChart/BodyWeightChart';
 import { formatDate, formatDuration, formatVolume, todayISO } from '../../utils';
+import { buildRecords, fromLb } from '../../lib/strength';
 import styles from './History.module.css';
 
 const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
@@ -50,25 +51,9 @@ export default function History() {
     return [...set].sort();
   }, [history]);
 
-  // All-time records grouped by muscle category
+  // All-time records grouped by muscle category, ranked by estimated 1RM
   const groupedRecords = useMemo(() => {
-    const recs = {};
-    for (const entry of history) {
-      for (const ex of (entry.exercises || [])) {
-        if (!recs[ex.name]) recs[ex.name] = { weight: 0, rawWeight: 0, unit: ex.unit || 'lb', volume: 0 };
-        const exUnit = ex.unit || 'lb';
-        for (const s of (ex.sets || [])) {
-          if (!s.done) continue;
-          const w = parseFloat(s.weight) || 0;
-          const r = parseFloat(s.reps) || 0;
-          const wLb = exUnit === 'kg' ? w * 2.2046 : w;
-          if (wLb > recs[ex.name].weight) {
-            recs[ex.name] = { weight: wLb, rawWeight: w, unit: exUnit, volume: recs[ex.name].volume };
-          }
-          if (wLb * r > recs[ex.name].volume) recs[ex.name].volume = wLb * r;
-        }
-      }
-    }
+    const recs = buildRecords(history);
     const grouped = {};
     for (const [name, rec] of Object.entries(recs)) {
       const cat = MOV_CAT_MAP.get(name.toLowerCase()) || 'Other';
@@ -76,7 +61,7 @@ export default function History() {
       grouped[cat].push({ name, ...rec });
     }
     for (const cat of Object.keys(grouped)) {
-      grouped[cat].sort((a, b) => b.weight - a.weight);
+      grouped[cat].sort((a, b) => b.e1rm - a.e1rm);
     }
     return grouped;
   }, [history]);
@@ -382,11 +367,23 @@ export default function History() {
                   <div className={styles.recordGroupTitle}>{cat.toUpperCase()}</div>
                   {groupedRecords[cat].map(rec => (
                     <div key={rec.name} className={styles.recordRow}>
-                      <div className={styles.recordName}>{rec.name}</div>
+                      <div className={styles.recordName}>
+                        {rec.name}
+                        {rec.e1rmReps > 1 && (
+                          <span className={styles.recordSource}>
+                            from {rec.e1rmWeight} {rec.unit} × {rec.e1rmReps}
+                          </span>
+                        )}
+                      </div>
                       <div className={styles.recordBests}>
-                        {rec.rawWeight > 0 && (
+                        {rec.e1rm > 0 && (
                           <span className={styles.recordBest}>
-                            🏆 {rec.rawWeight} {rec.unit}
+                            💪 {Math.round(fromLb(rec.e1rm, rec.unit))} {rec.unit} <span className={styles.recordBestLabel}>est. 1RM</span>
+                          </span>
+                        )}
+                        {rec.rawWeight > 0 && (
+                          <span className={styles.recordSecondary}>
+                            🏆 {rec.rawWeight} {rec.unit} heaviest
                           </span>
                         )}
                       </div>

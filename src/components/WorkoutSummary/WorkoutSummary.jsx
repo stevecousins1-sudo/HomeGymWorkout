@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatTimer, formatVolume } from '../../utils';
+import { e1rm, toLb, fromLb } from '../../lib/strength';
 import styles from './WorkoutSummary.module.css';
 
 function buildShareText(workoutName, elapsed, exercises, units, totalVolume, prsHit) {
@@ -42,21 +43,29 @@ export default function WorkoutSummary({
     }, 0);
   }, 0);
 
+  // A PR is a new best estimated 1RM (or simply the heaviest weight ever
+  // handled) — not a bigger weight × reps number, which just rewards
+  // switching to lighter, higher-rep sets.
   const prsHit = exercises.flatMap(ex => {
     const prev = prsByExercise[ex.name];
     const unit = units[ex.name] || 'lb';
-    let isWeightPR = false, isVolumePR = false;
+    let isWeightPR = false, bestE1rm = 0;
     for (const s of ex.sets.filter(s => s.done)) {
-      const w   = parseFloat(s.weight) || 0;
+      const wLb = toLb(s.weight, unit);
       const r   = parseFloat(s.reps) || 0;
-      const wLb = unit === 'kg' ? w * 2.2046 : w;
-      if (wLb > 0 && r > 0) {
-        if (wLb > (prev?.weight || 0)) isWeightPR = true;
-        if (wLb * r > (prev?.volume || 0)) isVolumePR = true;
-      }
+      if (wLb <= 0 || r <= 0) continue;
+      if (wLb > (prev?.weight || 0)) isWeightPR = true;
+      bestE1rm = Math.max(bestE1rm, e1rm(wLb, r));
     }
-    if (!isWeightPR && !isVolumePR) return [];
-    return [{ name: ex.name, label: isWeightPR ? 'Weight PR 🏆' : 'Volume PR 🏆' }];
+    const isStrengthPR = bestE1rm > (prev?.e1rm || 0);
+    if (!isWeightPR && !isStrengthPR) return [];
+    return [{
+      name: ex.name,
+      label: isWeightPR ? 'Heaviest ever 🏆' : 'Strength PR 🏆',
+      detail: bestE1rm > 0
+        ? `est. 1RM ${Math.round(fromLb(bestE1rm, unit))} ${unit}`
+        : null,
+    }];
   });
 
   async function handleShare() {
@@ -114,7 +123,10 @@ export default function WorkoutSummary({
             <div className={styles.sectionTitle}>PERSONAL RECORDS</div>
             {prsHit.map((pr, i) => (
               <div key={i} className={styles.prRow}>
-                <span className={styles.prName}>{pr.name}</span>
+                <span className={styles.prName}>
+                  {pr.name}
+                  {pr.detail && <span className={styles.prDetail}> · {pr.detail}</span>}
+                </span>
                 <span className={styles.prType}>{pr.label}</span>
               </div>
             ))}

@@ -454,11 +454,23 @@
   color: var(--text-primary);
   flex: 1;
   margin-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* An estimate is only trustworthy if you can see the set it came from. */
+.recordSource {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-hint);
 }
 
 .recordBests {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -469,6 +481,19 @@
   background: var(--brand-light);
   padding: 3px 10px;
   border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.recordBestLabel {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.recordSecondary {
+  font-size: 11px;
+  color: var(--text-hint);
+  white-space: nowrap;
 }
 
 /* ── Body weight tab ──────────────────────────────────────────── */

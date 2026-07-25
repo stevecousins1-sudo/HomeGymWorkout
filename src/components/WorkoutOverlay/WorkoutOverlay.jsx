@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, Fragment } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
@@ -8,6 +8,9 @@ import RestTimer from '../RestTimer/RestTimer';
 import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
 import { calcPlates } from '../../lib/plates';
 import { padToMinDuration } from '../../lib/workoutPadder';
+import { saveDraft, clearDraft } from '../../lib/draft';
+import { getProgression, ACTION_ICON } from '../../lib/progression';
+import { buildRecords, e1rm, toLb } from '../../lib/strength';
 import { applyMachineSubs } from '../../data/machineSubs';
 import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import { getBuildLabel } from '../../lib/version';
@@ -53,11 +56,14 @@ function getExerciseHistory(exName, history, limit = 4) {
   return history.filter(h => h.exercises?.some(e => e.name === exName)).slice(0, limit);
 }
 
-export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, hasMachines = true, onComplete, onClose }) {
+export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, hasMachines = true, draft = null, onComplete, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
           restPrefs, setRestPref, history, customMovements } = useApp();
   const navigate = useNavigate();
-  const elapsed  = useWorkoutTimer(true);
+  // Owned here (not by the hook) so a resumed session keeps its original
+  // start time and the timer doesn't reset to zero on reload.
+  const [startedAt] = useState(() => draft?.startedAt ?? Date.now());
+  const elapsed  = useWorkoutTimer(true, startedAt);
 
   // Merged movement list (built-in + custom)
   const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
@@ -79,11 +85,11 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   const initList = () => buildExercises(getPaddedStrings());
 
-  const [exercises, setExercises]         = useState(initList);
-  const [units, setUnits]                 = useState(() =>
+  const [exercises, setExercises]         = useState(() => draft?.exercises ?? initList());
+  const [units, setUnits]                 = useState(() => draft?.units ??
     initList().reduce((acc, ex) => ({ ...acc, [ex.name]: unitPrefs[ex.name] ?? getDefaultUnit(ex.name) }), {})
   );
-  const [restDurations, setRestDurations] = useState(() =>
+  const [restDurations, setRestDurations] = useState(() => draft?.restDurations ??
     initList().reduce((acc, ex) => ({ ...acc, [ex.name]: restPrefs[ex.name] ?? REST_DEFAULT }), {})
   );
   const [restVisible, setRestVisible]               = useState(false);
@@ -97,7 +103,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [addingExercise, setAddingExercise]         = useState(false);
   const [addFilter, setAddFilter]                   = useState('All');
   const [showSummary, setShowSummary]               = useState(false);
-  const [sessionNotes, setSessionNotes]             = useState('');
+  const [sessionNotes, setSessionNotes]             = useState(draft?.notes ?? '');
   const [dragIdx, setDragIdx]                       = useState(null);
   const [dropLineIdx, setDropLineIdx]               = useState(null);
   const [creatingExercise, setCreatingExercise]     = useState(false);
@@ -129,25 +135,48 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   const handleDismissRest = useCallback(() => setRestVisible(false), []);
 
-  // ── Compute PRs from history ─────────────────────────────────────────────────
-  const prsByExercise = useMemo(() => {
-    const map = {};
-    for (const entry of history) {
-      for (const ex of (entry.exercises || [])) {
-        if (!map[ex.name]) map[ex.name] = { weight: 0, volume: 0 };
-        const exUnit = ex.unit || 'lb';
-        for (const set of (ex.sets || [])) {
-          if (!set.done) continue;
-          const w = parseFloat(set.weight) || 0;
-          const r = parseFloat(set.reps) || 0;
-          const wLb = exUnit === 'kg' ? w * 2.2046 : w;
-          if (wLb > map[ex.name].weight) map[ex.name].weight = wLb;
-          if (wLb * r > map[ex.name].volume) map[ex.name].volume = wLb * r;
-        }
-      }
-    }
-    return map;
-  }, [history]);
+  // ── Draft persistence ────────────────────────────────────────────────────────
+  // The session lives in component state, and a backgrounded PWA can be evicted
+  // at any moment. Snapshot it so a crash or reload never costs logged sets.
+  const finishedRef = useRef(false);
+  const draftRef    = useRef(null);
+
+  useEffect(() => {
+    if (finishedRef.current) return;
+    draftRef.current = {
+      workoutName, dayName, isPlanWorkout, startedAt,
+      exercises, units, restDurations, notes: sessionNotes,
+    };
+    const id = setTimeout(() => saveDraft(draftRef.current), 400);
+    return () => clearTimeout(id);
+  }, [exercises, units, restDurations, sessionNotes,
+      workoutName, dayName, isPlanWorkout, startedAt]);
+
+  // Eviction comes with no warning, so don't let the debounce swallow the
+  // last change when the app goes into the background.
+  useEffect(() => {
+    const flushDraft = () => {
+      if (!finishedRef.current && draftRef.current) saveDraft(draftRef.current);
+    };
+    window.addEventListener('pagehide', flushDraft);
+    document.addEventListener('visibilitychange', flushDraft);
+    return () => {
+      window.removeEventListener('pagehide', flushDraft);
+      document.removeEventListener('visibilitychange', flushDraft);
+    };
+  }, []);
+
+  function endSession() {
+    finishedRef.current = true;
+    clearDraft();
+  }
+
+  // ── All-time bests from history (heaviest weight + best estimated 1RM) ───────
+  const prsByExercise = useMemo(() => buildRecords(history), [history]);
+
+  // Bests set earlier in *this* session, so a second PR set only celebrates if
+  // it actually beats the first one rather than re-firing off stale history.
+  const sessionBestRef = useRef({});
 
   // ── Unit toggle ──────────────────────────────────────────────────────────────
   function toggleUnit(exIdx, exName, newUnit) {
@@ -217,18 +246,28 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         setActiveRestDuration(restDurations[prev[exIdx].name] ?? REST_DEFAULT);
         setRestVisible(true);
 
-        // PR check
+        // PR check — measured on estimated 1RM so a heavy triple can outrank a
+        // light set of twelve, with heaviest-ever weight tracked alongside it.
         const exName = ex.name;
         const unit   = units[exName];
-        const w      = parseFloat(set.weight) || 0;
+        const wLb    = toLb(set.weight, unit);
         const r      = parseFloat(set.reps) || 0;
-        const wLb    = unit === 'kg' ? w * 2.2046 : w;
-        const prev2  = prsByExercise[exName];
         if (wLb > 0 && r > 0) {
-          const isWeightPR = wLb > (prev2?.weight || 0);
-          const isVolumePR = (wLb * r) > (prev2?.volume || 0);
-          if (isWeightPR || isVolumePR) {
-            setPrToast(isWeightPR ? '🏆 Weight PR!' : '🏆 Volume PR!');
+          const allTime = prsByExercise[exName];
+          const inSession = sessionBestRef.current[exName];
+          const bestWeight = Math.max(allTime?.weight || 0, inSession?.weight || 0);
+          const bestE1rm   = Math.max(allTime?.e1rm  || 0, inSession?.e1rm  || 0);
+
+          const est = e1rm(wLb, r);
+          const isWeightPR = wLb > bestWeight;
+          const isStrengthPR = est > bestE1rm;
+
+          if (isWeightPR || isStrengthPR) {
+            sessionBestRef.current[exName] = {
+              weight: Math.max(bestWeight, wLb),
+              e1rm: Math.max(bestE1rm, est),
+            };
+            setPrToast(isWeightPR ? '🏆 Heaviest ever!' : '🏆 Strength PR!');
             setTimeout(() => setPrToast(null), 3000);
           }
         }
@@ -247,31 +286,28 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     ));
   }
 
-  function applyOverloadSuggestion(exIdx, weight) {
+  /** Prefill every not-yet-completed set with the suggested weight and reps. */
+  function applyProgression(exIdx, prog) {
     setExercises(prev => prev.map((ex, ei) =>
       ei !== exIdx ? ex : {
         ...ex,
-        sets: ex.sets.map(s => s.done ? s : { ...s, weight: String(weight) }),
+        sets: ex.sets.map(s => s.done ? s : {
+          ...s,
+          weight: prog.weight != null ? String(prog.weight) : s.weight,
+          reps:   prog.reps   != null ? String(prog.reps)   : s.reps,
+        }),
       }
     ));
   }
 
-  function getSuggestion(exName, unit) {
-    const last = getLastSets(exName, history);
-    if (!last) return null;
-    const done = last.sets.filter(s => s.done);
-    if (!done.length) return null;
-    const maxW = Math.max(...done.map(s => parseFloat(s.weight) || 0));
-    if (maxW === 0) return null;
-    const fromUnit = last.unit || 'lb';
-    const converted = fromUnit === unit ? maxW : (
-      fromUnit === 'kg' && unit === 'lb' ? Math.round(maxW * 2.2046 * 4) / 4 :
-      Math.round(maxW / 2.2046 * 4) / 4
-    );
-    const mov = movMap.get(exName.toLowerCase());
-    const isCompound = mov?.equipment?.includes('Barbell');
-    const inc = unit === 'kg' ? (isCompound ? 2.5 : 1.25) : (isCompound ? 5 : 2.5);
-    return { suggested: converted + inc, inc, unit };
+  function getSuggestion(ex, unit) {
+    return getProgression({
+      exName: ex.name,
+      prescription: ex.prescription,
+      unit,
+      history,
+      isCompound: isBarbell(ex.name),
+    });
   }
 
   function removeSet(exIdx, setIdx) {
@@ -427,8 +463,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       if (entry) markScheduleEntry(today, 'done', true);
     }
     const exerciseData = exercises.map(ex => ({
-      name: ex.name, unit: units[ex.name],
-      sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
+      name: ex.name, unit: units[ex.name], prescription: ex.prescription,
+      // RPE is what lets the next session autoregulate — it has to survive the save.
+      sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done, rpe: s.rpe })),
       warmupSets: (ex.warmupSets ?? []).map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
     }));
     addHistory({
@@ -441,16 +478,21 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       const exerciseStrings = exercises.map(ex => `${ex.name} — ${ex.prescription}`);
       onComplete(exerciseStrings, dayName || workoutName);
     }
+    endSession();
     onClose();
     navigate('/history');
   }
 
   function handleDiscard() {
+    endSession();
     onClose();
   }
 
   function handleCancel() {
-    if (window.confirm('Cancel workout? Progress will be lost.')) onClose();
+    if (window.confirm('Cancel workout? Progress will be lost.')) {
+      endSession();
+      onClose();
+    }
   }
 
   // ── Exercise drag-to-reorder ─────────────────────────────────────────────────
@@ -689,14 +731,18 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                     <div className={styles.exerciseName}>{ex.name}</div>
                     {!collapsedMode && ex.prescription && <div className={styles.exercisePrescription}>{ex.prescription}</div>}
                     {!collapsedMode && (() => {
-                      const sug = getSuggestion(ex.name, units[ex.name]);
+                      const sug = getSuggestion(ex, units[ex.name]);
                       if (!sug) return null;
                       return (
                         <button
-                          className={styles.overloadChip}
-                          onClick={() => applyOverloadSuggestion(exIdx, sug.suggested)}
+                          className={`${styles.overloadChip} ${styles['overload_' + sug.action] ?? ''}`}
+                          onClick={() => applyProgression(exIdx, sug)}
+                          title={sug.rationale}
                         >
-                          ↑ Try {sug.suggested} {sug.unit} (+{sug.inc})
+                          <span className={styles.overloadLabel}>
+                            {ACTION_ICON[sug.action]} {sug.label}
+                          </span>
+                          <span className={styles.overloadReason}>{sug.rationale}</span>
                         </button>
                       );
                     })()}
