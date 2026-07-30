@@ -62,6 +62,7 @@ export function AppProvider({ children }) {
         setTemplatesState([]);
         setCustomPlansState([]);
         setBodyWeightLogState([]);
+        setHasMachinesState(null);
       }
     });
     return unsub;
@@ -139,6 +140,7 @@ export function AppProvider({ children }) {
         setTemplatesState(s.templates || []);
         setCustomPlansState(s.custom_plans || []);
         setBodyWeightLogState(s.body_weight_log || []);
+        setHasMachinesState(s.has_machines ?? null);
       } else if (settingsRes.reason?.status === 404) {
         // First login — create default settings with empty history
         await settingsApi.create({ active_plan: null, unit_prefs: {}, global_unit: 'lb', rest_prefs: {}, custom_movements: [], templates: [], custom_plans: [] });
@@ -161,10 +163,14 @@ export function AppProvider({ children }) {
   const setActivePlan = useCallback((plan) => {
     setActivePlanState(plan);
     setHasMachinesState(null); // re-ask machine question for each new plan
-    patchSettings({ active_plan: plan });
+    patchSettings({ active_plan: plan, has_machines: null });
   }, []);
 
-  const setHasMachines = useCallback((val) => setHasMachinesState(val), []);
+  // Persisted, so a reload doesn't re-ask a question the user already answered.
+  const setHasMachines = useCallback((val) => {
+    setHasMachinesState(val);
+    patchSettings({ has_machines: val });
+  }, []);
 
   const cancelPlan = useCallback(() => {
     setActivePlanState(null);
@@ -189,32 +195,46 @@ export function AppProvider({ children }) {
     }, { clientId });
   }, []);
 
-  const importHistory = useCallback(async (entries) => {
-    const results = [];
-    for (const entry of entries) {
-      try {
-        const record = await historyApi.create({
-          entry_date: entry.date,
-          name: entry.name,
-          day_name: entry.dayName || entry.name,
-          duration: entry.duration || 0,
-          volume: entry.volume || 0,
-          sets: entry.sets || 0,
-          exercises: entry.exercises || [],
-        });
-        results.push(recordToEntry(record));
-      } catch (e) {
-        console.error('Failed to import entry:', entry.date, e);
-      }
+  // Imports go through the outbox too, so a restore performed on a flaky
+  // connection can't silently drop half the file.
+  const importHistory = useCallback((entries) => {
+    const rows = entries.map(entry => ({
+      clientId: nextClientId(),
+      entry: {
+        date: entry.date,
+        name: entry.name,
+        dayName: entry.dayName || entry.name,
+        duration: entry.duration || 0,
+        volume: entry.volume || 0,
+        sets: entry.sets || 0,
+        exercises: entry.exercises || [],
+        notes: entry.notes || '',
+      },
+    }));
+
+    setHistory(prev => {
+      const merged = [
+        ...rows.map(({ entry, clientId }) => ({ ...entry, id: clientId, clientId, pending: true })),
+        ...prev,
+      ];
+      merged.sort((a, b) => b.date.localeCompare(a.date));
+      return merged;
+    });
+
+    for (const { entry, clientId } of rows) {
+      enqueue('history.create', {
+        entry_date: entry.date,
+        name: entry.name,
+        day_name: entry.dayName,
+        duration: entry.duration,
+        volume: entry.volume,
+        sets: entry.sets,
+        exercises: entry.exercises,
+        notes: entry.notes || null,
+      }, { clientId });
     }
-    if (results.length > 0) {
-      setHistory(prev => {
-        const merged = [...results, ...prev];
-        merged.sort((a, b) => b.date.localeCompare(a.date));
-        return merged;
-      });
-    }
-    return results.length;
+
+    return rows.length;
   }, []);
 
   const setUnitPref = useCallback((movementName, unit) => {

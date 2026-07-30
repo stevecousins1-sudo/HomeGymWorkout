@@ -58,7 +58,7 @@ function getExerciseHistory(exName, history, limit = 4) {
 
 export default function WorkoutOverlay({ workoutName, dayName, exercises: exercisesProp, isPlanWorkout, hasMachines = true, draft = null, onComplete, onClose }) {
   const { addHistory, markScheduleEntry, activePlan, unitPrefs, setUnitPref,
-          restPrefs, setRestPref, history, customMovements } = useApp();
+          restPrefs, setRestPref, history, customMovements, addCustomMovement } = useApp();
   const navigate = useNavigate();
   // Owned here (not by the hook) so a resumed session keeps its original
   // start time and the timer doesn't reset to zero on reload.

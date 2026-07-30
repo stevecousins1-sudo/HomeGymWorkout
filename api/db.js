@@ -42,6 +42,7 @@ async function initDb() {
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS custom_plans JSONB DEFAULT '[]';
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS body_weight_log JSONB DEFAULT '[]';
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'auto';
+    ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS has_machines JSONB;
     ALTER TABLE history ADD COLUMN IF NOT EXISTS notes TEXT;
   `);
   console.log('Database ready');

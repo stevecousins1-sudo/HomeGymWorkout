@@ -9,7 +9,6 @@ import { formatDate, formatDuration, formatVolume, todayISO } from '../../utils'
 import { buildRecords, fromLb } from '../../lib/strength';
 import styles from './History.module.css';
 
-const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
 const CAT_ORDER = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
 function parseExercise(str) {
@@ -30,7 +29,7 @@ function entryToExerciseStrings(entry) {
 }
 
 export default function History() {
-  const { history, importHistory, bodyWeightLog, addBodyWeightEntry, globalUnit } = useApp();
+  const { history, importHistory, bodyWeightLog, addBodyWeightEntry, globalUnit, customMovements } = useApp();
   const [activeTab, setActiveTab]       = useState('history');
   const [detail, setDetail]             = useState(null);
   const [overlay, setOverlay]           = useState(null);
@@ -51,12 +50,19 @@ export default function History() {
     return [...set].sort();
   }, [history]);
 
+  // Custom movements are real movements — group their records by the category
+  // the user gave them rather than dumping them all in "Other".
+  const movCatMap = useMemo(
+    () => new Map([...MOVEMENTS, ...customMovements].map(m => [m.name.toLowerCase(), m.category])),
+    [customMovements]
+  );
+
   // All-time records grouped by muscle category, ranked by estimated 1RM
   const groupedRecords = useMemo(() => {
     const recs = buildRecords(history);
     const grouped = {};
     for (const [name, rec] of Object.entries(recs)) {
-      const cat = MOV_CAT_MAP.get(name.toLowerCase()) || 'Other';
+      const cat = movCatMap.get(name.toLowerCase()) || 'Other';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push({ name, ...rec });
     }
@@ -64,7 +70,7 @@ export default function History() {
       grouped[cat].sort((a, b) => b.e1rm - a.e1rm);
     }
     return grouped;
-  }, [history]);
+  }, [history, movCatMap]);
 
   const filteredExNames = useMemo(() => {
     const q = exSearch.trim().toLowerCase();

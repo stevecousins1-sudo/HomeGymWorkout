@@ -9,7 +9,6 @@ import { formatDate, getGreeting, todayISO } from '../../utils';
 import { loadDraft, clearDraft } from '../../lib/draft';
 import styles from './Today.module.css';
 
-const MOV_CAT_MAP = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m.category]));
 const MUSCLE_TARGETS = { Chest: 10, Back: 10, Legs: 10, Shoulders: 8, Arms: 6, Core: 6 };
 
 function getWeekDates() {
@@ -44,7 +43,7 @@ const QUICK_STARTS = [
 ];
 
 export default function Today() {
-  const { activePlan, markScheduleEntry, updatePlanDayTemplate, history, theme, setTheme, user, logout, hasMachines, setHasMachines } = useApp();
+  const { activePlan, markScheduleEntry, updatePlanDayTemplate, history, theme, setTheme, user, logout, hasMachines, setHasMachines, customMovements } = useApp();
   const [overlay, setOverlay] = useState(null);
   const [previewEntry, setPreviewEntry] = useState(null);
   const [pendingWorkout, setPendingWorkout] = useState(null);
@@ -63,6 +62,13 @@ export default function Today() {
   const totalCount = activePlan?.schedule.length ?? 0;
   const progressPct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
 
+  // Custom movements count towards the heatmap too — they're often exactly the
+  // ones a user does most.
+  const movCatMap = useMemo(
+    () => new Map([...MOVEMENTS, ...customMovements].map(m => [m.name.toLowerCase(), m.category])),
+    [customMovements]
+  );
+
   // Weekly volume per muscle group
   const weeklyVolume = useMemo(() => {
     const weekDates = new Set(getWeekDates());
@@ -70,14 +76,14 @@ export default function Today() {
     for (const entry of history) {
       if (!weekDates.has(entry.date)) continue;
       for (const ex of (entry.exercises || [])) {
-        const cat = MOV_CAT_MAP.get(ex.name.toLowerCase());
+        const cat = movCatMap.get(ex.name.toLowerCase());
         if (!cat) continue;
         const done = (ex.sets || []).filter(s => s.done).length;
         counts[cat] = (counts[cat] || 0) + done;
       }
     }
     return counts;
-  }, [history]);
+  }, [history, movCatMap]);
 
   const nextSession = activePlan?.schedule.find(
     e => !e.done && !e.skipped && e.date > today

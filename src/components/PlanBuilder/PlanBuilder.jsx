@@ -63,8 +63,6 @@ export default function PlanBuilder({ onClose }) {
   function handleStart() {
     const finalPlan = { ...generatedPlan, name: planName || generatedPlan.name };
     saveCustomPlan(finalPlan);
-    // setActivePlan resets hasMachines; set it back so first workout skips the prompt
-    setHasMachines(builderHasMachines !== false);
     const schedule = generateSchedule(finalPlan, startDate);
     setActivePlan({
       planId: finalPlan.id,
@@ -74,6 +72,9 @@ export default function PlanBuilder({ onClose }) {
       isCustom: true,
       exerciseTemplates: finalPlan.exerciseTemplates,
     });
+    // Must come after setActivePlan, which clears hasMachines for the new plan —
+    // the builder already asked, so the first workout shouldn't ask again.
+    setHasMachines(builderHasMachines !== false);
     onClose();
   }
 

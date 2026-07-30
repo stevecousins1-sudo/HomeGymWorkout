@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './RestTimer.module.css';
 
 function playBeep(audioCtx) {
@@ -23,17 +23,30 @@ function playBeep(audioCtx) {
 
 export default function RestTimer({ duration = 90, onDone, audioCtx }) {
   const [remaining, setRemaining] = useState(duration);
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
+  // Counted off a wall-clock deadline rather than by decrementing once a
+  // second: browsers throttle timers in backgrounded tabs, and a rest timer
+  // that pauses while the phone is locked is worse than no timer at all.
   useEffect(() => {
-    if (remaining <= 0) {
+    const deadline = Date.now() + duration * 1000;
+    let fired = false;
+
+    const tick = () => {
+      const left = Math.ceil((deadline - Date.now()) / 1000);
+      setRemaining(Math.max(0, left));
+      if (left > 0 || fired) return;
+      fired = true;
       playBeep(audioCtx);
       navigator.vibrate?.([200, 100, 200]);
-      onDone();
-      return;
-    }
-    const t = setTimeout(() => setRemaining(r => r - 1), 1000);
-    return () => clearTimeout(t);
-  }, [remaining, onDone, audioCtx]);
+      onDoneRef.current();
+    };
+
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [duration, audioCtx]);
 
   const pct = (remaining / duration) * 100;
 

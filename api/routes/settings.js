@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/', async (req, res) => {
-  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates', 'custom_plans', 'body_weight_log', 'theme'];
+  const allowed = ['active_plan', 'unit_prefs', 'global_unit', 'rest_prefs', 'custom_movements', 'templates', 'custom_plans', 'body_weight_log', 'theme', 'has_machines'];
   const updates = [];
   const values = [];
   let i = 1;
