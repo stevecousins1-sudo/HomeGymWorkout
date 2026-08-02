@@ -37,10 +37,10 @@ const SUPPORT_CAT = {
   Core: null,
 };
 
-function pickSupportExercise(primaryCat, usedNames) {
+function pickSupportExercise(primaryCat, usedNames, library) {
   const supportCat = SUPPORT_CAT[primaryCat];
   if (!supportCat) return null;
-  const pool = shuffle(MOVEMENTS.filter(m => m.category === supportCat && !usedNames.has(m.name)));
+  const pool = shuffle(library.filter(m => m.category === supportCat && !usedNames.has(m.name)));
   if (primaryCat === 'Chest') {
     const tricep = pool.find(m => {
       const l = m.name.toLowerCase();
@@ -76,14 +76,19 @@ function prescriptionFor(movement, position) {
 /**
  * Build a ~1 hour workout starting with the selected movement.
  * Movements are randomised each call so you get variety.
+ *
+ * `customMovements` are the user's own additions; they're drawn from on equal
+ * terms with the built-in library, so a workout built around one of your
+ * movements can use your others as accessories.
  */
-export function buildWorkoutFromMovement(primary) {
+export function buildWorkoutFromMovement(primary, customMovements = []) {
+  const library     = [...MOVEMENTS, ...customMovements];
   const usedNames   = new Set([primary.name]);
   const usedBuckets = new Set([equipBucket(primary.equipment)]);
 
   // Shuffle so every workout is different
   const sameCat = shuffle(
-    MOVEMENTS.filter(m => m.category === primary.category && m.name !== primary.name)
+    library.filter(m => m.category === primary.category && m.name !== primary.name)
   );
 
   const picked = [];
@@ -108,7 +113,7 @@ export function buildWorkoutFromMovement(primary) {
     }
   }
 
-  const support = pickSupportExercise(primary.category, usedNames);
+  const support = pickSupportExercise(primary.category, usedNames, library);
   const exercises = [primary, ...picked.slice(0, 4), ...(support ? [support] : [])];
 
   return exercises.map((ex, i) => `${ex.name} — ${prescriptionFor(ex, i)}`);

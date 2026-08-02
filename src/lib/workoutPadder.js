@@ -36,8 +36,14 @@ function buildStr(ex) {
  * Strategy:
  *  1. Add sets to existing exercises (round-robin, up to MAX_SETS_PER_EX)
  *  2. Append accessory exercises from the same muscle categories
+ *
+ * Options:
+ *  - `targetMinutes`   minimum session length to pad towards
+ *  - `customMovements` the user's own movements, preferred over the built-in
+ *                      library when picking accessories: they added them
+ *                      because they can actually do them.
  */
-export function padToMinDuration(exerciseStrings, targetMinutes = TARGET_MIN) {
+export function padToMinDuration(exerciseStrings, { targetMinutes = TARGET_MIN, customMovements = [] } = {}) {
   if (!exerciseStrings?.length) return exerciseStrings;
 
   const parsed = exerciseStrings.map(str => {
@@ -67,7 +73,8 @@ export function padToMinDuration(exerciseStrings, targetMinutes = TARGET_MIN) {
   if (est >= targetMinutes) return parsed.map(buildStr);
 
   // ── Step 2: add more exercises from the same categories ──────────────────
-  const movByName = new Map(MOVEMENTS.map(m => [m.name.toLowerCase(), m]));
+  const library   = [...customMovements, ...MOVEMENTS];
+  const movByName = new Map(library.map(m => [m.name.toLowerCase(), m]));
   const existingNames = new Set(parsed.map(e => e.name.toLowerCase()));
 
   // Which categories are already in this workout?
@@ -85,8 +92,9 @@ export function padToMinDuration(exerciseStrings, targetMinutes = TARGET_MIN) {
     ?? '10';
   const inferSets = 3;
 
-  // Candidates: same categories, not already present — ordered by MOVEMENTS index (deterministic)
-  const candidates = MOVEMENTS.filter(
+  // Candidates: same categories, not already present — ordered by library index
+  // (deterministic), with the user's own movements first.
+  const candidates = library.filter(
     m => categories.has(m.category) && !existingNames.has(m.name.toLowerCase())
   );
 

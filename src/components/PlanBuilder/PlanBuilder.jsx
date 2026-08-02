@@ -16,7 +16,7 @@ function autoName(goal, focus, days) {
 }
 
 export default function PlanBuilder({ onClose }) {
-  const { setActivePlan, saveCustomPlan, setHasMachines } = useApp();
+  const { setActivePlan, saveCustomPlan, setHasMachines, customMovements } = useApp();
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(null);
@@ -44,6 +44,7 @@ export default function PlanBuilder({ onClose }) {
         goal, focus, daysPerWeek: days, weeks,
         name: planName || autoName(goal, focus, days),
         hasMachines: builderHasMachines !== false,
+        customMovements,
       });
       setGeneratedPlan(plan);
       if (!nameEdited) setPlanName(plan.name);

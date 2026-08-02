@@ -16,7 +16,8 @@ export default function Workout() {
   const [building, setBuilding]     = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
-  const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
+  // Your own movements first — the built-in library is long enough to bury them.
+  const allMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
 
   const visible = useMemo(() => {
     let list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
@@ -31,7 +32,7 @@ export default function Workout() {
     setOverlay({
       name:      workoutNameForMovement(movement),
       dayName:   workoutNameForMovement(movement),
-      exercises: buildWorkoutFromMovement(movement),
+      exercises: buildWorkoutFromMovement(movement, customMovements),
     });
   }
 

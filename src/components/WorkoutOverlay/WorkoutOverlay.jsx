@@ -65,9 +65,12 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [startedAt] = useState(() => draft?.startedAt ?? Date.now());
   const elapsed  = useWorkoutTimer(true, startedAt);
 
-  // Merged movement list (built-in + custom)
+  // Merged movement list (built-in + custom). Custom last here so that on a
+  // name clash the user's own definition wins when building the lookup map.
   const allMovements = useMemo(() => [...MOVEMENTS, ...customMovements], [customMovements]);
   const movMap = useMemo(() => new Map(allMovements.map(m => [m.name.toLowerCase(), m])), [allMovements]);
+  // For pickers, show the user's own movements first — same as the builder.
+  const pickerMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
   const getMovement   = name => movMap.get(name.toLowerCase()) ?? null;
   const isBodyweight  = name => getMovement(name)?.equipment?.includes('Bodyweight') ?? false;
   const isBarbell     = name => getMovement(name)?.equipment?.toLowerCase().includes('barbell') ?? false;
@@ -78,7 +81,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     if (!_paddedStrings.current) {
       let raw = exercisesProp ?? getExercisesForDay(dayName);
       if (!hasMachines) raw = applyMachineSubs(raw);
-      _paddedStrings.current = isPlanWorkout ? padToMinDuration(raw) : raw;
+      _paddedStrings.current = isPlanWorkout ? padToMinDuration(raw, { customMovements }) : raw;
     }
     return _paddedStrings.current;
   }
@@ -664,10 +667,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
   const swapCategory = swapIdx !== null ? getMovement(exercises[swapIdx]?.name)?.category : null;
   const swapOptions  = swapCategory
-    ? allMovements.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
+    ? pickerMovements.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
     : [];
 
-  const addOptions = allMovements.filter(m =>
+  const addOptions = pickerMovements.filter(m =>
     (addFilter === 'All' || m.category === addFilter) &&
     !exercises.find(e => e.name === m.name)
   );
@@ -887,7 +890,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             <div className={styles.swapList}>
               {swapOptions.map(m => (
                 <button key={m.name} className={styles.swapOption} onClick={() => swapExercise(m)}>
-                  <span className={styles.swapOptName}>{m.name}</span>
+                  <span className={styles.swapOptName}>
+                    {m.name}
+                    {m.custom && <span className={styles.customBadge}>custom</span>}
+                  </span>
                   <span className={styles.swapOptMeta}>{m.equipment}</span>
                 </button>
               ))}
@@ -953,7 +959,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             <div className={styles.swapList}>
               {addOptions.map(m => (
                 <button key={m.name} className={styles.swapOption} onClick={() => addExercise(m)}>
-                  <span className={styles.swapOptName}>{m.name}</span>
+                  <span className={styles.swapOptName}>
+                    {m.name}
+                    {m.custom && <span className={styles.customBadge}>custom</span>}
+                  </span>
                   <span className={styles.swapOptMeta}>{m.category} · {m.equipment}</span>
                 </button>
               ))}
