@@ -225,100 +225,15 @@
   padding: 4px 6px;
 }
 
-.modalBody {
-  overflow-y: auto;
-  flex: 1;
-  padding: 20px 20px env(safe-area-inset-bottom, 20px);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
 
-.fieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
-.fieldLabel {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.3px;
-}
 
-.fieldInput {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  font-size: 15px;
-  color: var(--text-primary);
-  width: 100%;
-}
 
-.fieldInputError {
-  border-color: var(--red);
-}
 
-.fieldError {
-  font-size: 12px;
-  color: var(--red);
-}
 
-.pillRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
-.optionPill {
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  white-space: nowrap;
-}
 
-.optionPillActive {
-  background: var(--brand);
-  color: #fff;
-  border-color: var(--brand);
-}
 
-.unitToggleModal {
-  display: flex;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-pill);
-  padding: 3px;
-  align-self: flex-start;
-}
 
-.unitBtnModal {
-  padding: 6px 20px;
-  border-radius: var(--radius-pill);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
 
-.unitBtnModalActive {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-}
 
-.saveBtn {
-  background: var(--brand);
-  color: #fff;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  font-size: 15px;
-  font-weight: 600;
-  width: 100%;
-  text-align: center;
-  margin-top: 4px;
-}

@@ -1,3 +1,14 @@
+// The vocabularies offered when a user defines their own movement. Equipment
+// is a fixed list rather than free text because the strings are load-bearing:
+// 'Barbell' drives the plate calculator, 'Machine' drives the no-machines
+// substitution, and both feed plan scoring.
+export const MUSCLE_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+
+export const EQUIPMENT_OPTIONS = [
+  'Barbell', 'Dumbbell', 'Cable machine', 'Machine',
+  'Bodyweight', 'Kettlebell', 'Resistance band', 'EZ bar', 'Other',
+];
+
 export const MOVEMENTS = [
   // Chest
   { name: 'Bench press',           category: 'Chest',     equipment: 'Barbell, Rack' },

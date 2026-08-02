@@ -1,15 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MOVEMENTS } from '../../data/movements';
+import MovementForm from '../../components/MovementForm/MovementForm';
 import styles from './Movements.module.css';
 
 const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-const MUS_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-const EQUIPMENT_OPTIONS = [
-  'Barbell', 'Dumbbell', 'Cable machine', 'Machine',
-  'Bodyweight', 'Kettlebell', 'Resistance band', 'EZ bar', 'Other',
-];
-const EMPTY_FORM = { name: '', category: 'Chest', equipment: 'Barbell', unit: 'lb' };
 
 function UnitToggle({ name, unit, onToggle }) {
   return (
@@ -35,8 +30,6 @@ export default function Movements() {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
 
   const handleToggle = useCallback((name, unit) => {
     setUnitPref(name, unit);
@@ -54,25 +47,9 @@ export default function Movements() {
     return list;
   }, [allMovements, filter, search]);
 
-  function openAdd() {
-    setForm(EMPTY_FORM);
-    setErrors({});
-    setAdding(true);
-  }
-
-  function validate() {
-    const e = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    else if (allMovements.some(m => m.name.toLowerCase() === form.name.trim().toLowerCase()))
-      e.name = 'A movement with this name already exists';
-    return e;
-  }
-
-  function handleSave() {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
-    addCustomMovement({ name: form.name.trim(), category: form.category, equipment: form.equipment });
-    setUnitPref(form.name.trim(), form.unit);
+  function handleSave(movement, unit) {
+    addCustomMovement(movement);
+    setUnitPref(movement.name, unit);
     setAdding(false);
   }
 
@@ -105,7 +82,7 @@ export default function Movements() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <button className={styles.addBtn} onClick={openAdd}>+ Add</button>
+          <button className={styles.addBtn} onClick={() => setAdding(true)}>+ Add</button>
         </div>
 
         <div className={styles.filters}>
@@ -159,70 +136,11 @@ export default function Movements() {
               <button className={styles.modalClose} onClick={() => setAdding(false)}>✕</button>
             </div>
 
-            <div className={styles.modalBody}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Movement name</label>
-                <input
-                  className={`${styles.fieldInput}${errors.name ? ' ' + styles.fieldInputError : ''}`}
-                  placeholder="e.g. Landmine squat"
-                  value={form.name}
-                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors({}); }}
-                />
-                {errors.name && <span className={styles.fieldError}>{errors.name}</span>}
-              </div>
-
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Muscle group</label>
-                <div className={styles.pillRow}>
-                  {MUS_GROUPS.map(g => (
-                    <button
-                      key={g}
-                      className={`${styles.optionPill}${form.category === g ? ' ' + styles.optionPillActive : ''}`}
-                      onClick={() => setForm(f => ({ ...f, category: g }))}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Equipment</label>
-                <div className={styles.pillRow}>
-                  {EQUIPMENT_OPTIONS.map(eq => (
-                    <button
-                      key={eq}
-                      className={`${styles.optionPill}${form.equipment === eq ? ' ' + styles.optionPillActive : ''}`}
-                      onClick={() => setForm(f => ({ ...f, equipment: eq }))}
-                    >
-                      {eq}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Default weight unit</label>
-                <div className={styles.unitToggleModal}>
-                  <button
-                    className={`${styles.unitBtnModal}${form.unit === 'lb' ? ' ' + styles.unitBtnModalActive : ''}`}
-                    onClick={() => setForm(f => ({ ...f, unit: 'lb' }))}
-                  >
-                    lb
-                  </button>
-                  <button
-                    className={`${styles.unitBtnModal}${form.unit === 'kg' ? ' ' + styles.unitBtnModalActive : ''}`}
-                    onClick={() => setForm(f => ({ ...f, unit: 'kg' }))}
-                  >
-                    kg
-                  </button>
-                </div>
-              </div>
-
-              <button className={styles.saveBtn} onClick={handleSave}>
-                Save movement
-              </button>
-            </div>
+            <MovementForm
+              existing={allMovements}
+              submitLabel="Save movement"
+              onSave={handleSave}
+            />
           </div>
         </>
       )}

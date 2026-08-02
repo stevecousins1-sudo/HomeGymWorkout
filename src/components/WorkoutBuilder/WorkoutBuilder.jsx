@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MOVEMENTS } from '../../data/movements';
+import MovementForm from '../MovementForm/MovementForm';
 import styles from './WorkoutBuilder.module.css';
 
 const CATEGORIES = [
@@ -21,9 +22,19 @@ function estimateMinutes(count) {
 }
 
 export default function WorkoutBuilder({ onStart, onClose }) {
-  const { customMovements } = useApp();
+  const { customMovements, addCustomMovement, setUnitPref } = useApp();
   const [category, setCategory] = useState(null);
   const [selected, setSelected] = useState([]); // array of movement objects
+  const [creating, setCreating] = useState(false);
+
+  // Saved to the library and selected straight away — you opened this to build
+  // a workout, not to manage a movement list.
+  function handleCreateMovement(movement, unit) {
+    addCustomMovement(movement);
+    setUnitPref(movement.name, unit);
+    setSelected(prev => [...prev, movement]);
+    setCreating(false);
+  }
 
   function toggleExercise(movement) {
     setSelected(prev => {
@@ -51,14 +62,15 @@ export default function WorkoutBuilder({ onStart, onClose }) {
   //
   // Theirs come first: the library runs to 40+ entries per category, and
   // someone who just added a movement is usually opening this screen to use it.
+  // Full list, for rejecting duplicate names when creating a movement — a clash
+  // in any category shadows the original in every name-keyed lookup.
+  const allMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
+
   const movList = useMemo(() => {
     if (!category) return [];
     const inCategory = m => m.category === category;
-    return [
-      ...customMovements.filter(inCategory),
-      ...MOVEMENTS.filter(inCategory),
-    ];
-  }, [category, customMovements]);
+    return allMovements.filter(inCategory);
+  }, [category, allMovements]);
 
   // ── Step 1: category selection ──────────────────────────────
   if (!category) {
@@ -119,7 +131,21 @@ export default function WorkoutBuilder({ onStart, onClose }) {
       </div>
 
       <div className={styles.scrollArea}>
-        {movList.map(m => {
+        {creating ? (
+          <MovementForm
+            initialCategory={category}
+            existing={allMovements}
+            submitLabel="Create & add"
+            onSave={handleCreateMovement}
+            onCancel={() => setCreating(false)}
+          />
+        ) : (
+          <button className={styles.createNewBtn} onClick={() => setCreating(true)}>
+            + Create new movement
+          </button>
+        )}
+
+        {!creating && movList.map(m => {
           const isSelected = selected.some(s => s.name === m.name);
           return (
             <button

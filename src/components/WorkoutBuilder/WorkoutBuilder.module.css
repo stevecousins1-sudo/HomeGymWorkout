@@ -136,6 +136,19 @@
   line-height: 1.4;
 }
 
+/* ── Create new movement (step 2) ────────────────────────── */
+.createNewBtn {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* ── Exercise rows (step 2) ──────────────────────────────── */
 .exRow {
   width: 100%;

@@ -6,6 +6,7 @@ import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
 import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
+import MovementForm from '../MovementForm/MovementForm';
 import { calcPlates } from '../../lib/plates';
 import { padToMinDuration } from '../../lib/workoutPadder';
 import { saveDraft, clearDraft } from '../../lib/draft';
@@ -110,9 +111,6 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [dragIdx, setDragIdx]                       = useState(null);
   const [dropLineIdx, setDropLineIdx]               = useState(null);
   const [creatingExercise, setCreatingExercise]     = useState(false);
-  const [newExName, setNewExName]                   = useState('');
-  const [newExCategory, setNewExCategory]           = useState('Chest');
-  const [newExEquipment, setNewExEquipment]         = useState('Cable machine');
   const [reexpanding, setReexpanding]               = useState(false);
 
   const swipeRefs    = useRef({});
@@ -326,13 +324,18 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     setExercises(prev => prev.filter((_, i) => i !== exIdx));
   }
 
-  function addExercise(movement) {
+  // `unit` is passed explicitly when the movement was just created — the unit
+  // preference won't have propagated through context state yet.
+  function addExercise(movement, unit) {
     const prescription = '3×10';
     setExercises(prev => [
       ...prev,
       { name: movement.name, prescription, sets: buildSets(prescription), warmupSets: [] },
     ]);
-    setUnits(prev => ({ ...prev, [movement.name]: unitPrefs[movement.name] ?? getDefaultUnit(movement.name) }));
+    setUnits(prev => ({
+      ...prev,
+      [movement.name]: unit ?? unitPrefs[movement.name] ?? getDefaultUnit(movement.name),
+    }));
     setRestDurations(prev => ({ ...prev, [movement.name]: restPrefs[movement.name] ?? REST_DEFAULT }));
     setAddingExercise(false);
   }
@@ -555,15 +558,11 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   }
 
   // ── Create & add custom exercise ─────────────────────────────────────────────
-  function handleCreateExercise() {
-    const name = newExName.trim();
-    if (!name) return;
-    const movement = { name, category: newExCategory, equipment: newExEquipment.trim() || 'Cable machine' };
+  function handleCreateExercise(movement, unit) {
     addCustomMovement(movement);
-    addExercise(movement);
+    setUnitPref(movement.name, unit);
+    addExercise(movement, unit);
     setCreatingExercise(false);
-    setNewExName('');
-    setNewExEquipment('Cable machine');
   }
 
   // ── Set row renderer ─────────────────────────────────────────────────────────
@@ -905,48 +904,28 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       {/* Add exercise sheet */}
       {addingExercise && (
         <>
-          <div className={styles.swapBackdrop} onClick={() => { setAddingExercise(false); setCreatingExercise(false); setNewExName(''); }} />
+          <div className={styles.swapBackdrop} onClick={() => { setAddingExercise(false); setCreatingExercise(false); }} />
           <div className={styles.swapSheet}>
             <div className={styles.swapHeader}>
               <span className={styles.swapTitle}>Add exercise</span>
-              <button className={styles.swapClose} onClick={() => { setAddingExercise(false); setCreatingExercise(false); setNewExName(''); }}>✕</button>
+              <button className={styles.swapClose} onClick={() => { setAddingExercise(false); setCreatingExercise(false); }}>✕</button>
             </div>
 
             {creatingExercise ? (
-              <div className={styles.createForm}>
-                <input
-                  className={styles.createFormInput}
-                  value={newExName}
-                  onChange={e => setNewExName(e.target.value)}
-                  placeholder="Exercise name"
-                  autoFocus
-                />
-                <select
-                  className={styles.createFormSelect}
-                  value={newExCategory}
-                  onChange={e => setNewExCategory(e.target.value)}
-                >
-                  {MOV_CATEGORIES.filter(c => c !== 'All').map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <input
-                  className={styles.createFormInput}
-                  value={newExEquipment}
-                  onChange={e => setNewExEquipment(e.target.value)}
-                  placeholder="Equipment (e.g. Cable machine)"
-                />
-                <div className={styles.createFormBtns}>
-                  <button className={styles.createCancelBtn} onClick={() => { setCreatingExercise(false); setNewExName(''); }}>Cancel</button>
-                  <button className={styles.createConfirmBtn} onClick={handleCreateExercise} disabled={!newExName.trim()}>Create &amp; add</button>
-                </div>
-              </div>
+              <MovementForm
+                initialCategory={addFilter === 'All' ? 'Chest' : addFilter}
+                existing={allMovements}
+                submitLabel="Create & add"
+                onSave={handleCreateExercise}
+                onCancel={() => setCreatingExercise(false)}
+              />
             ) : (
               <button className={styles.createNewExBtn} onClick={() => setCreatingExercise(true)}>
-                + Create new exercise
+                + Create new movement
               </button>
             )}
 
+            {!creatingExercise && (
             <div className={styles.addFilterRow}>
               {MOV_CATEGORIES.map(cat => (
                 <button
@@ -956,6 +935,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 >{cat}</button>
               ))}
             </div>
+            )}
+            {!creatingExercise && (
             <div className={styles.swapList}>
               {addOptions.map(m => (
                 <button key={m.name} className={styles.swapOption} onClick={() => addExercise(m)}>
@@ -967,6 +948,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 </button>
               ))}
             </div>
+            )}
           </div>
         </>
       )}
