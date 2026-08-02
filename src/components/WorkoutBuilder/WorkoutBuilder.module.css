@@ -168,6 +168,20 @@
   color: var(--text-primary);
 }
 
+/* Matches the badge on the Workout and Movements screens */
+.customBadge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--brand-light, rgba(99,102,241,0.1));
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+
 .exMeta {
   font-size: 12px;
   color: var(--text-secondary);

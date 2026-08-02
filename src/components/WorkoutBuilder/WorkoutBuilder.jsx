@@ -48,12 +48,17 @@ export default function WorkoutBuilder({ onStart, onClose }) {
   // Movements the user added themselves belong here just as much as the
   // built-in library — this list is "everything I can train", not "everything
   // that shipped with the app".
-  const movList = useMemo(
-    () => category
-      ? [...MOVEMENTS, ...customMovements].filter(m => m.category === category)
-      : [],
-    [category, customMovements]
-  );
+  //
+  // Theirs come first: the library runs to 40+ entries per category, and
+  // someone who just added a movement is usually opening this screen to use it.
+  const movList = useMemo(() => {
+    if (!category) return [];
+    const inCategory = m => m.category === category;
+    return [
+      ...customMovements.filter(inCategory),
+      ...MOVEMENTS.filter(inCategory),
+    ];
+  }, [category, customMovements]);
 
   // ── Step 1: category selection ──────────────────────────────
   if (!category) {
@@ -123,7 +128,10 @@ export default function WorkoutBuilder({ onStart, onClose }) {
               onClick={() => toggleExercise(m)}
             >
               <div className={styles.exInfo}>
-                <div className={styles.exName}>{m.name}</div>
+                <div className={styles.exName}>
+                  {m.name}
+                  {m.custom && <span className={styles.customBadge}>custom</span>}
+                </div>
                 <div className={styles.exMeta}>{m.equipment}</div>
               </div>
               <div className={`${styles.checkBox}${isSelected ? ' ' + styles.checkBoxActive : ''}`}>
