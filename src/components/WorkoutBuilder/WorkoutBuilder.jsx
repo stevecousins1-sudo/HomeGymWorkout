@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useApp } from '../../context/AppContext';
 import { MOVEMENTS } from '../../data/movements';
 import styles from './WorkoutBuilder.module.css';
 
@@ -20,6 +21,7 @@ function estimateMinutes(count) {
 }
 
 export default function WorkoutBuilder({ onStart, onClose }) {
+  const { customMovements } = useApp();
   const [category, setCategory] = useState(null);
   const [selected, setSelected] = useState([]); // array of movement objects
 
@@ -41,8 +43,17 @@ export default function WorkoutBuilder({ onStart, onClose }) {
     });
   }
 
-  const est     = estimateMinutes(selected.length);
-  const movList = category ? MOVEMENTS.filter(m => m.category === category) : [];
+  const est = estimateMinutes(selected.length);
+
+  // Movements the user added themselves belong here just as much as the
+  // built-in library — this list is "everything I can train", not "everything
+  // that shipped with the app".
+  const movList = useMemo(
+    () => category
+      ? [...MOVEMENTS, ...customMovements].filter(m => m.category === category)
+      : [],
+    [category, customMovements]
+  );
 
   // ── Step 1: category selection ──────────────────────────────
   if (!category) {
