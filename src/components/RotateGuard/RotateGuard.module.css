@@ -1,0 +1,59 @@
+/* Hidden unless a touch device is held in landscape.
+ *
+ *  - `pointer: coarse` keeps this off desktop, where a short wide window is
+ *    a normal way to use the app rather than a rotated phone.
+ *  - `max-height: 500px` keeps it off tablets, which are comfortable in
+ *    landscape (iPhone landscape is ~375-430px tall; iPad is 744px+).
+ */
+.guard {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .guard {
+    position: fixed;
+    inset: 0;
+    /* Above the workout overlay (z-index 100) and every bottom sheet. */
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: center;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+}
+
+.icon {
+  width: 44px;
+  height: 44px;
+  color: var(--brand);
+  animation: tip 2.2s ease-in-out infinite;
+}
+
+/* A nudge rather than a spin — it hints which way to turn without dominating. */
+@keyframes tip {
+  0%, 55%, 100% { transform: rotate(-90deg); }
+  75%, 90%      { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon { animation: none; transform: rotate(-90deg); }
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}

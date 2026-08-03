@@ -8,6 +8,7 @@ import Movements from './screens/Movements/Movements';
 import Plans from './screens/Plans/Plans';
 import History from './screens/History/History';
 import Auth from './screens/Auth/Auth';
+import RotateGuard from './components/RotateGuard/RotateGuard';
 import styles from './App.module.css';
 
 // Apply saved theme immediately, before React renders, so there's no flash
@@ -78,6 +79,8 @@ export default function App() {
       <BrowserRouter>
         <AppShell />
       </BrowserRouter>
+      {/* Outside the shell so it also covers the loading and sign-in screens. */}
+      <RotateGuard />
     </AppProvider>
   );
 }
