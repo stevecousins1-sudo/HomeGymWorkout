@@ -627,6 +627,13 @@
   flex-direction: column;
 }
 
+/* Browsing a list is fine at 60vh, but the create-movement form needs the room.
+   dvh so iOS measures the visible viewport rather than the toolbar-hidden one. */
+.swapSheetTall {
+  max-height: 88vh;
+  max-height: 88dvh;
+}
+
 .swapHeader {
   display: flex;
   align-items: center;

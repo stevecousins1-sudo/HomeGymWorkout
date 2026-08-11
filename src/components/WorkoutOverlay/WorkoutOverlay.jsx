@@ -905,9 +905,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       {addingExercise && (
         <>
           <div className={styles.swapBackdrop} onClick={() => { setAddingExercise(false); setCreatingExercise(false); }} />
-          <div className={styles.swapSheet}>
+          <div className={`${styles.swapSheet}${creatingExercise ? ' ' + styles.swapSheetTall : ''}`}>
             <div className={styles.swapHeader}>
-              <span className={styles.swapTitle}>Add exercise</span>
+              <span className={styles.swapTitle}>{creatingExercise ? 'New movement' : 'Add exercise'}</span>
               <button className={styles.swapClose} onClick={() => { setAddingExercise(false); setCreatingExercise(false); }}>✕</button>
             </div>
 

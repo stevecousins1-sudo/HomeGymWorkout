@@ -1,11 +1,30 @@
 /* Mirrors the "Add movement" form on the Movements screen so a movement
    created mid-workout is described the same way. */
 
+/* The form is taller than a short phone's sheet, so it splits into a scrolling
+ * field area and a pinned action row — the submit button must never be the
+ * part that falls off the bottom.
+ *
+ * `flex: 1 1 auto` + `min-height: 0` let it fill a height-constrained flex
+ * parent (the bottom sheets) while still laying out naturally inside an
+ * already-scrolling one (the workout builder).
+ */
 .form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fields {
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 4px 16px 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fieldGroup {
@@ -85,10 +104,15 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
+/* Pinned below the scrolling fields. The safe-area inset keeps the button clear
+   of the iPhone home indicator. */
 .actions {
   display: flex;
   gap: 10px;
-  margin-top: 2px;
+  flex-shrink: 0;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
 }
 
 .cancelBtn {

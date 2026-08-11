@@ -41,6 +41,9 @@ export default function MovementForm({
 
   return (
     <div className={styles.form}>
+      {/* Fields scroll; the actions below stay pinned, so the submit button is
+          reachable even on a short phone where the form can't fit at once. */}
+      <div className={styles.fields}>
       <div className={styles.fieldGroup}>
         <label className={styles.fieldLabel}>Movement name</label>
         <input
@@ -99,6 +102,7 @@ export default function MovementForm({
             kg
           </button>
         </div>
+      </div>
       </div>
 
       <div className={styles.actions}>
