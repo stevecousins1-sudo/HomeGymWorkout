@@ -110,6 +110,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [sessionNotes, setSessionNotes]             = useState(draft?.notes ?? '');
   const [dragIdx, setDragIdx]                       = useState(null);
   const [dropLineIdx, setDropLineIdx]               = useState(null);
+  // Index of an exercise picked up by tapping its handle, awaiting a destination.
+  const [liftedIdx, setLiftedIdx]                   = useState(null);
   const [creatingExercise, setCreatingExercise]     = useState(false);
   const [reexpanding, setReexpanding]               = useState(false);
 
@@ -501,9 +503,56 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     }
   }
 
-  // ── Exercise drag-to-reorder ─────────────────────────────────────────────────
+  // ── Exercise reordering ──────────────────────────────────────────────────────
+  //
+  // Two ways in, from the same handle:
+  //
+  //   drag — hold and move. Fine for nudging something a place or two, but a
+  //          drag has to suppress native scrolling, so anything off-screen is
+  //          out of reach on a long list.
+  //   tap  — lifts the exercise and leaves the list scrollable. Scroll wherever
+  //          you like, then tap the gap to drop it in. Every position stays
+  //          reachable no matter how many exercises there are.
+
+  /** Below this, a pointer-down on the handle is a tap rather than a drag. */
+  const DRAG_THRESHOLD_PX = 6;
+
+  function handleReorderPointerDown(e, idx) {
+    // While something is lifted the handle toggles the selection instead, so a
+    // stray drag can't start underneath the placement UI.
+    if (liftedIdx !== null) {
+      e.preventDefault();
+      setLiftedIdx(liftedIdx === idx ? null : idx);
+      return;
+    }
+    startExerciseDrag(e, idx);
+  }
+
+  function moveExercise(from, gap) {
+    // `gap` is an insertion point between cards, so it shifts down by one once
+    // the item is pulled out from above it.
+    const to = gap > from ? gap - 1 : gap;
+    if (to !== from) {
+      setExercises(prev => {
+        const next = [...prev];
+        const [item] = next.splice(from, 1);
+        next.splice(to, 0, item);
+        return next;
+      });
+    }
+    setLiftedIdx(null);
+    setReexpanding(true);
+    setTimeout(() => setReexpanding(false), 220);
+  }
+
+  /** A gap either side of the lifted card would leave it exactly where it is. */
+  const canPlaceAt = gap => liftedIdx !== null && gap !== liftedIdx && gap !== liftedIdx + 1;
+
   function startExerciseDrag(e, idx) {
     e.preventDefault();
+    const startY = e.touches ? e.touches[0].clientY : e.clientY;
+    let moved = false;
+
     setDragIdx(idx);
     setDropLineIdx(idx);
     dragActive.current = { startIdx: idx, currentDropLine: idx };
@@ -512,8 +561,12 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
 
     const onMove = ev => {
       if (!dragActive.current) return;
-      if (ev.cancelable) ev.preventDefault();
       const y = getY(ev);
+      // Hold off on preventDefault until this is definitely a drag, so a tap
+      // stays a tap.
+      if (!moved && Math.abs(y - startY) < DRAG_THRESHOLD_PX) return;
+      moved = true;
+      if (ev.cancelable) ev.preventDefault();
       let dropLine = 0;
       for (let i = 0; i < cardRefs.current.length; i++) {
         const el = cardRefs.current[i];
@@ -527,11 +580,29 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       }
     };
 
+    const unbind = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchend', onEnd);
+    };
+
     const onEnd = () => {
       if (!dragActive.current) return;
-      const from = dragActive.current.startIdx;
-      const dl   = dragActive.current.currentDropLine;
-      const to   = dl > from ? dl - 1 : dl;
+      const { startIdx: from, currentDropLine: dl } = dragActive.current;
+      dragActive.current = null;
+      setDragIdx(null);
+      setDropLineIdx(null);
+      unbind();
+
+      // Never moved — this was a tap, so lift it and let the user scroll to
+      // the destination instead of dropping it where it already is.
+      if (!moved) {
+        setLiftedIdx(from);
+        return;
+      }
+
+      const to = dl > from ? dl - 1 : dl;
       if (from !== to) {
         setExercises(prev => {
           const next = [...prev];
@@ -540,15 +611,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           return next;
         });
       }
-      dragActive.current = null;
-      setDragIdx(null);
-      setDropLineIdx(null);
       setReexpanding(true);
       setTimeout(() => setReexpanding(false), 220);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchend', onEnd);
     };
 
     window.addEventListener('mousemove', onMove);
@@ -686,6 +750,17 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         <button className={styles.finishBtn} onClick={handleFinish}>Finish</button>
       </div>
 
+      {liftedIdx !== null && (
+        <div className={styles.moveBar}>
+          <span className={styles.moveBarText}>
+            Moving <strong>{exercises[liftedIdx]?.name}</strong> — scroll, then tap where it goes
+          </span>
+          {/* Not just "Cancel" — the header's ✕ Cancel abandons the whole
+              workout, and the two must not read as the same action. */}
+          <button className={styles.moveBarCancel} onClick={() => setLiftedIdx(null)}>Cancel move</button>
+        </div>
+      )}
+
       {prToast && <div className={styles.prToast}>{prToast}</div>}
       {restVisible && (
         <RestTimer
@@ -709,23 +784,36 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
           const plates       = isBarbell(ex.name) && maxWeight > 0 ? calcPlates(maxWeight, unit) : null;
 
           const isDragging = dragIdx === exIdx;
-          const collapsedMode = dragIdx !== null;
+          const isLifted   = liftedIdx === exIdx;
+          const collapsedMode = dragIdx !== null || liftedIdx !== null;
           const isDnDNoOp  = collapsedMode && (dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1);
           const showDropBefore = !isDnDNoOp && dropLineIdx === exIdx && collapsedMode;
 
           return (
             <Fragment key={exIdx}>
               {showDropBefore && <div className={styles.dropLine} />}
+              {canPlaceAt(exIdx) && (
+                <button className={styles.placeTarget} onClick={() => moveExercise(liftedIdx, exIdx)}>
+                  <span className={styles.placeTargetLine} />
+                  <span className={styles.placeTargetLabel}>Move here</span>
+                  <span className={styles.placeTargetLine} />
+                </button>
+              )}
               <div
                 ref={el => { cardRefs.current[exIdx] = el; }}
-                className={[styles.exerciseCard, isDragging ? styles.draggingCard : ''].filter(Boolean).join(' ')}
+                className={[
+                  styles.exerciseCard,
+                  isDragging ? styles.draggingCard : '',
+                  isLifted ? styles.liftedCard : '',
+                ].filter(Boolean).join(' ')}
               >
               <div className={[styles.exerciseHeader, collapsedMode ? styles.exerciseHeaderCollapsed : ''].filter(Boolean).join(' ')}>
                 <div className={styles.exerciseTitleRow}>
                   <button
-                    className={styles.dragHandle}
-                    onMouseDown={e => startExerciseDrag(e, exIdx)}
-                    onTouchStart={e => startExerciseDrag(e, exIdx)}
+                    className={`${styles.dragHandle}${isLifted ? ' ' + styles.dragHandleLifted : ''}`}
+                    onMouseDown={e => handleReorderPointerDown(e, exIdx)}
+                    onTouchStart={e => handleReorderPointerDown(e, exIdx)}
+                    aria-label={isLifted ? `Cancel moving ${ex.name}` : `Move ${ex.name}`}
                   >
                     ☰
                   </button>
@@ -846,7 +934,15 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
         {dragIdx !== null && !((dropLineIdx === dragIdx || dropLineIdx === dragIdx + 1)) && dropLineIdx === exercises.length && (
           <div className={styles.dropLine} />
         )}
+        {canPlaceAt(exercises.length) && (
+          <button className={styles.placeTarget} onClick={() => moveExercise(liftedIdx, exercises.length)}>
+            <span className={styles.placeTargetLine} />
+            <span className={styles.placeTargetLabel}>Move here</span>
+            <span className={styles.placeTargetLine} />
+          </button>
+        )}
 
+        {liftedIdx === null && (
         <div className={styles.notesSection}>
           <label className={styles.notesLabel}>Session notes</label>
           <textarea
@@ -857,10 +953,13 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             rows={3}
           />
         </div>
+        )}
 
-        <button className={styles.addExerciseBtn} onClick={() => setAddingExercise(true)}>
-          + Add exercise
-        </button>
+        {liftedIdx === null && (
+          <button className={styles.addExerciseBtn} onClick={() => setAddingExercise(true)}>
+            + Add exercise
+          </button>
+        )}
       </div>
 
       {/* Workout summary */}
