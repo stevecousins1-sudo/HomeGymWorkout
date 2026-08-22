@@ -98,6 +98,9 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   );
   const [restVisible, setRestVisible]               = useState(false);
   const [activeRestDuration, setActiveRestDuration] = useState(REST_DEFAULT);
+  // Bumped on every completed set; used as the RestTimer's key so each one
+  // starts a genuinely new countdown rather than inheriting the running one.
+  const [restRunId, setRestRunId]                   = useState(0);
   const [swapIdx, setSwapIdx]                       = useState(null);
   const [historyOpen, setHistoryOpen]               = useState(new Set());
   const [flashSet, setFlashSet]                     = useState(null);
@@ -241,42 +244,51 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       return;
     }
     ensureAudioCtx();
+    // Side effects stay out of the updater: StrictMode runs updaters twice, and
+    // this one used to fire the rest timer and PR toast from inside it.
     setExercises(prev => {
       const next = prev.map((e, ei) =>
         ei !== exIdx ? e : { ...e, sets: e.sets.map((s, si) => si !== setIdx ? s : { ...s, done: !s.done }) }
       );
-      if (!set.done) {
-        setActiveRestDuration(restDurations[prev[exIdx].name] ?? REST_DEFAULT);
-        setRestVisible(true);
-
-        // PR check — measured on estimated 1RM so a heavy triple can outrank a
-        // light set of twelve, with heaviest-ever weight tracked alongside it.
-        const exName = ex.name;
-        const unit   = units[exName];
-        const wLb    = toLb(set.weight, unit);
-        const r      = parseFloat(set.reps) || 0;
-        if (wLb > 0 && r > 0) {
-          const allTime = prsByExercise[exName];
-          const inSession = sessionBestRef.current[exName];
-          const bestWeight = Math.max(allTime?.weight || 0, inSession?.weight || 0);
-          const bestE1rm   = Math.max(allTime?.e1rm  || 0, inSession?.e1rm  || 0);
-
-          const est = e1rm(wLb, r);
-          const isWeightPR = wLb > bestWeight;
-          const isStrengthPR = est > bestE1rm;
-
-          if (isWeightPR || isStrengthPR) {
-            sessionBestRef.current[exName] = {
-              weight: Math.max(bestWeight, wLb),
-              e1rm: Math.max(bestE1rm, est),
-            };
-            setPrToast(isWeightPR ? '🏆 Heaviest ever!' : '🏆 Strength PR!');
-            setTimeout(() => setPrToast(null), 3000);
-          }
-        }
-      }
       return next;
     });
+
+    if (set.done) return;   // un-ticking a set shouldn't start a rest
+
+    // Every completed set starts a fresh rest, at whatever this exercise is set
+    // to. Bumping the run id remounts the timer, so finishing a set while one is
+    // already counting cancels it and starts over — including when the two
+    // exercises share the same rest length, where the duration prop alone would
+    // not have changed and the old countdown would have carried on.
+    setActiveRestDuration(restDurations[ex.name] ?? REST_DEFAULT);
+    setRestVisible(true);
+    setRestRunId(n => n + 1);
+
+    // PR check — measured on estimated 1RM so a heavy triple can outrank a
+    // light set of twelve, with heaviest-ever weight tracked alongside it.
+    const exName = ex.name;
+    const unit   = units[exName];
+    const wLb    = toLb(set.weight, unit);
+    const r      = parseFloat(set.reps) || 0;
+    if (wLb > 0 && r > 0) {
+      const allTime = prsByExercise[exName];
+      const inSession = sessionBestRef.current[exName];
+      const bestWeight = Math.max(allTime?.weight || 0, inSession?.weight || 0);
+      const bestE1rm   = Math.max(allTime?.e1rm  || 0, inSession?.e1rm  || 0);
+
+      const est = e1rm(wLb, r);
+      const isWeightPR = wLb > bestWeight;
+      const isStrengthPR = est > bestE1rm;
+
+      if (isWeightPR || isStrengthPR) {
+        sessionBestRef.current[exName] = {
+          weight: Math.max(bestWeight, wLb),
+          e1rm: Math.max(bestE1rm, est),
+        };
+        setPrToast(isWeightPR ? '🏆 Heaviest ever!' : '🏆 Strength PR!');
+        setTimeout(() => setPrToast(null), 3000);
+      }
+    }
   }
 
   function addSet(exIdx) {
@@ -764,6 +776,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
       {prToast && <div className={styles.prToast}>{prToast}</div>}
       {restVisible && (
         <RestTimer
+          key={restRunId}
           duration={activeRestDuration}
           onDone={handleDismissRest}
           audioCtx={audioCtxRef.current}
