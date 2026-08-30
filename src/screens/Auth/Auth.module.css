@@ -91,6 +91,66 @@
   border-color: var(--brand);
 }
 
+/* ── Recovery code ─────────────────────────────────────────── */
+.codeIntro {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.codeBox {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 16px 10px;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.codeGroup {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.codeCopyBtn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.codeHint {
+  font-size: 12.5px;
+  color: var(--text-hint);
+  line-height: 1.45;
+  margin: 14px 0 18px;
+}
+
+.linkBtn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--brand-text);
+  text-align: center;
+}
+
 .error {
   font-size: 13px;
   color: var(--red);

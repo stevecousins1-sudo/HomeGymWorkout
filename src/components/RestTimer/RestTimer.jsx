@@ -26,6 +26,41 @@ export default function RestTimer({ duration = 90, onDone, audioCtx }) {
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
+  // Hold the screen awake for the length of the rest.
+  //
+  // Safari implements push notifications but not local ones, and a suspended
+  // PWA cannot run a timer, so there is no way to schedule an alert for a phone
+  // that has gone to sleep. Keeping the screen on is what actually makes the
+  // beep arrive — the phone sitting on the bench stays awake until rest is up.
+  // (Installed web apps need iOS 18.4+; earlier versions ignore this.)
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+    let lock = null;
+    let released = false;
+
+    const acquire = async () => {
+      try {
+        lock = await navigator.wakeLock.request('screen');
+      } catch {
+        // Denied, battery saver, or not permitted here — the timer is unaffected.
+      }
+    };
+    acquire();
+
+    // The system drops the lock whenever the page is hidden, so take it again
+    // on the way back rather than silently losing it for the rest of the set.
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !released) acquire();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      released = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      lock?.release?.().catch(() => {});
+    };
+  }, []);
+
   // Counted off a wall-clock deadline rather than by decrementing once a
   // second: browsers throttle timers in backgrounded tabs, and a rest timer
   // that pauses while the phone is locked is worse than no timer at all.

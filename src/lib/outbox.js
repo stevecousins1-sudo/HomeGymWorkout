@@ -92,6 +92,7 @@ export function enqueue(kind, body, meta = null) {
 async function send(op) {
   switch (op.kind) {
     case 'history.create':  return historyApi.create(op.body);
+    case 'history.update':  return historyApi.update(op.body.id, op.body.entry);
     case 'history.remove':  return historyApi.remove(op.body.id);
     case 'settings.patch':  return settingsApi.patch(op.body);
     default: throw Object.assign(new Error(`Unknown op ${op.kind}`), { fatal: true });

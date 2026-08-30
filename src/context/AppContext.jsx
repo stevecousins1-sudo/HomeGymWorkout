@@ -195,6 +195,31 @@ export function AppProvider({ children }) {
     }, { clientId });
   }, []);
 
+  // A mistyped set poisons every derived number — records, PR toasts, the
+  // progress chart and the next session's suggestion all key off best e1RM —
+  // so a logged session has to be correctable after the fact.
+  const updateHistoryEntry = useCallback((id, entry) => {
+    setHistory(prev => prev.map(h => (h.id === id ? { ...h, ...entry } : h)));
+    enqueue('history.update', {
+      id,
+      entry: {
+        entry_date: entry.date,
+        name: entry.name,
+        day_name: entry.dayName || entry.name,
+        duration: entry.duration || 0,
+        volume: entry.volume || 0,
+        sets: entry.sets || 0,
+        exercises: entry.exercises || [],
+        notes: entry.notes || null,
+      },
+    });
+  }, []);
+
+  const deleteHistoryEntry = useCallback((id) => {
+    setHistory(prev => prev.filter(h => h.id !== id));
+    enqueue('history.remove', { id });
+  }, []);
+
   // Imports go through the outbox too, so a restore performed on a flaky
   // connection can't silently drop half the file.
   const importHistory = useCallback((entries) => {
@@ -358,6 +383,8 @@ export function AppProvider({ children }) {
       setActivePlan,
       cancelPlan,
       addHistory,
+      updateHistoryEntry,
+      deleteHistoryEntry,
       importHistory,
       customMovements,
       addCustomMovement,

@@ -29,9 +29,12 @@ function entryToExerciseStrings(entry) {
 }
 
 export default function History() {
-  const { history, importHistory, bodyWeightLog, addBodyWeightEntry, globalUnit, customMovements } = useApp();
+  const { history, importHistory, bodyWeightLog, addBodyWeightEntry, globalUnit, customMovements,
+          updateHistoryEntry, deleteHistoryEntry } = useApp();
   const [activeTab, setActiveTab]       = useState('history');
   const [detail, setDetail]             = useState(null);
+  // A working copy of the entry being corrected; null when not editing.
+  const [editing, setEditing]           = useState(null);
   const [overlay, setOverlay]           = useState(null);
   const [importStatus, setImportStatus] = useState(null);
   const [exSearch, setExSearch]         = useState('');
@@ -114,6 +117,50 @@ export default function History() {
     ? Math.round(history.reduce((a, h) => a + h.sets, 0) / history.length)
     : 0;
 
+  // Volume and set count are derived, so they have to be recomputed from the
+  // corrected sets — otherwise the stats keep reporting the typo.
+  function recalc(entry) {
+    const done = ex => (ex.sets || []).filter(s => s.done);
+    const sets = (entry.exercises || []).reduce((a, ex) => a + done(ex).length, 0);
+    const volume = (entry.exercises || []).reduce((a, ex) => {
+      const unit = ex.unit || 'lb';
+      return a + done(ex).reduce((x, s) => {
+        const w = parseFloat(s.weight) || 0;
+        const r = parseFloat(s.reps) || 0;
+        return x + (unit === 'kg' ? w * 2.2046 : w) * r;
+      }, 0);
+    }, 0);
+    return { ...entry, sets, volume: Math.round(volume) };
+  }
+
+  function startEdit() {
+    setEditing(JSON.parse(JSON.stringify(detail)));
+  }
+
+  function editSet(exIdx, setIdx, field, value) {
+    setEditing(prev => recalc({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((s, j) => j !== setIdx ? s : { ...s, [field]: value }),
+      }),
+    }));
+  }
+
+  function saveEdit() {
+    const next = recalc(editing);
+    updateHistoryEntry(next.id, next);
+    setDetail(next);
+    setEditing(null);
+  }
+
+  function removeEntry() {
+    if (!window.confirm('Delete this workout permanently?')) return;
+    deleteHistoryEntry(detail.id);
+    setEditing(null);
+    setDetail(null);
+  }
+
   function startRedo(entry) {
     const exercises = entryToExerciseStrings(entry);
     setOverlay({ name: entry.name, dayName: entry.dayName || entry.name, exercises });
@@ -125,11 +172,15 @@ export default function History() {
     const planExercises   = hasExerciseData
       ? null
       : getExercisesForDay(detail.dayName || detail.name);
+    // Editing an entry the server hasn't acknowledged would send a PUT for an
+    // id it doesn't know yet, which the outbox would drop as a permanent 4xx.
+    const awaitingSync = !!detail.pending;
+    const shown = editing ?? detail;
 
     return (
       <>
         <div className={styles.screen}>
-          <button className={styles.backBtn} onClick={() => setDetail(null)}>← Back</button>
+          <button className={styles.backBtn} onClick={() => { setEditing(null); setDetail(null); }}>← Back</button>
           <div className={styles.detailName}>{detail.name}</div>
           <div className={styles.detailDate}>{formatDate(detail.date)}</div>
 
@@ -139,14 +190,32 @@ export default function History() {
               <div className={styles.chipLabel}>Duration</div>
             </div>
             <div className={styles.chip}>
-              <div className={styles.chipValue}>{formatVolume(detail.volume)}</div>
+              <div className={styles.chipValue}>{formatVolume(shown.volume)}</div>
               <div className={styles.chipLabel}>Volume</div>
             </div>
             <div className={styles.chip}>
-              <div className={styles.chipValue}>{detail.sets}</div>
+              <div className={styles.chipValue}>{shown.sets}</div>
               <div className={styles.chipLabel}>Sets done</div>
             </div>
           </div>
+
+          {hasExerciseData && (
+            <div className={styles.editRow}>
+              {awaitingSync ? (
+                <span className={styles.editHint}>Still syncing — editable once saved to the server.</span>
+              ) : editing ? (
+                <>
+                  <button className={styles.editCancelBtn} onClick={() => setEditing(null)}>Cancel</button>
+                  <button className={styles.editSaveBtn} onClick={saveEdit}>Save changes</button>
+                </>
+              ) : (
+                <>
+                  <button className={styles.editBtn} onClick={startEdit}>✎ Edit sets</button>
+                  <button className={styles.deleteEntryBtn} onClick={removeEntry}>Delete</button>
+                </>
+              )}
+            </div>
+          )}
 
           {detail.notes?.trim() && (
             <div className={styles.detailNotes}>
@@ -158,7 +227,7 @@ export default function History() {
           <div className={styles.sectionTitle}>MOVEMENTS</div>
 
           {hasExerciseData
-            ? detail.exercises.map((ex, i) => {
+            ? shown.exercises.map((ex, i) => {
                 const doneSets = ex.sets.filter(s => s.done);
                 return (
                   <div key={i} className={styles.exCard}>
@@ -166,7 +235,30 @@ export default function History() {
                       <div className={styles.exName}>{ex.name}</div>
                       <span className={styles.setBadge}>{doneSets.length}/{ex.sets.length} sets</span>
                     </div>
-                    {ex.sets.map((s, si) => (
+                    {ex.sets.map((s, si) => editing ? (
+                      <div key={si} className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                        <span className={styles.setNumDetail}>Set {si + 1}</span>
+                        <input
+                          className={styles.editInput}
+                          type="number" inputMode="decimal"
+                          value={s.weight ?? ''}
+                          onChange={e => editSet(i, si, 'weight', e.target.value)}
+                        />
+                        <span className={styles.editUnit}>{ex.unit}</span>
+                        <span className={styles.editTimes}>×</span>
+                        <input
+                          className={styles.editInput}
+                          type="number" inputMode="numeric"
+                          value={s.reps ?? ''}
+                          onChange={e => editSet(i, si, 'reps', e.target.value)}
+                        />
+                        <button
+                          className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`}
+                          aria-label={s.done ? 'Mark set not done' : 'Mark set done'}
+                          onClick={() => editSet(i, si, 'done', !s.done)}
+                        />
+                      </div>
+                    ) : (
                       <div key={si} className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
                         <span className={styles.setNumDetail}>Set {si + 1}</span>
                         <span className={styles.setData}>

@@ -44,6 +44,9 @@ async function initDb() {
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'auto';
     ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS has_machines JSONB;
     ALTER TABLE history ADD COLUMN IF NOT EXISTS notes TEXT;
+    -- bcrypt hash of the one-time recovery code; the code itself is shown to
+    -- the user once and never stored.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_code_hash TEXT;
   `);
   console.log('Database ready');
 }

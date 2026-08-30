@@ -58,11 +58,11 @@ async function request(path, options = {}) {
 }
 
 export const auth = {
-  async register(email, password) {
-    const data = await request('/api/auth/register', { method: 'POST', body: { email, password } });
-    authStore.save(data.token, data.user);
-    return data;
-  },
+  // Deliberately does NOT sign in. The response carries a recovery code that is
+  // never retrievable again, so the caller shows it first and calls
+  // authStore.save once the user has acknowledged it.
+  register: (email, password) =>
+    request('/api/auth/register', { method: 'POST', body: { email, password } }),
   async login(email, password) {
     const data = await request('/api/auth/login', { method: 'POST', body: { email, password } });
     authStore.save(data.token, data.user);
@@ -73,11 +73,17 @@ export const auth = {
     authStore.save(data.token, data.user);
     return data;
   },
+  // Same deal as register: hands back a replacement code to be shown first.
+  resetPassword: (email, code, password) =>
+    request('/api/auth/reset-password', { method: 'POST', body: { email, code, password } }),
+  // Issues a replacement code, invalidating the old one.
+  newRecoveryCode: () => request('/api/auth/recovery-code', { method: 'POST' }),
 };
 
 export const historyApi = {
   list: () => request('/api/history'),
   create: (body) => request('/api/history', { method: 'POST', body }),
+  update: (id, body) => request(`/api/history/${id}`, { method: 'PUT', body }),
   remove: (id) => request(`/api/history/${id}`, { method: 'DELETE' }),
 };
 

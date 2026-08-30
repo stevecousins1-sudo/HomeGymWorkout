@@ -264,6 +264,71 @@
   flex-shrink: 0;
 }
 
+/* ── Correcting a logged session ───────────────────────────── */
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.editHint {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+.editBtn, .editCancelBtn {
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.editSaveBtn {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deleteEntryBtn {
+  margin-left: auto;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--red);
+  background: var(--bg-primary);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.editInput {
+  width: 62px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 6px;
+  font-size: 16px;   /* keeps iOS from zooming on focus */
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.editUnit {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+.editTimes {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .checkDone {
   background: var(--brand);
   border-color: var(--brand);

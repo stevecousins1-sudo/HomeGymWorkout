@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { auth } from '../../lib/api';
+import { auth, authStore } from '../../lib/api';
 import styles from './Auth.module.css';
 
 export default function Auth() {
@@ -7,9 +7,14 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // { code, token, user } after sign-up or a reset. Nothing can retrieve the
+  // code afterwards, so the session is held here until it is acknowledged.
+  const [issued, setIssued] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -17,13 +22,24 @@ export default function Auth() {
     setSuccess('');
     setSubmitting(true);
     try {
+      if (mode === 'reset') {
+        if (password !== passwordConfirm) {
+          setError('Passwords do not match');
+          setSubmitting(false);
+          return;
+        }
+        const data = await auth.resetPassword(email, recoveryCode, password);
+        setIssued({ code: data.recoveryCode, token: data.token, user: data.user });
+        return;
+      }
       if (mode === 'register') {
         if (password !== passwordConfirm) {
           setError('Passwords do not match');
           setSubmitting(false);
           return;
         }
-        await auth.register(email, password);
+        const data = await auth.register(email, password);
+        setIssued({ code: data.recoveryCode, token: data.token, user: data.user });
         return;
       }
       await auth.login(email, password);
@@ -44,6 +60,55 @@ export default function Auth() {
     setMode(next);
     setError('');
     setSuccess('');
+  }
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(issued.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch { /* clipboard blocked — the code is on screen to copy by hand */ }
+  }
+
+  // ── One-time recovery code ─────────────────────────────────────────────────
+  // Sign-in is deferred until this is acknowledged: once past this screen the
+  // code cannot be retrieved, only replaced.
+  if (issued) {
+    return (
+      <div className={styles.screen}>
+        <div className={styles.card}>
+          <div className={styles.logoRow}>
+            <div className={styles.logoIcon}>🔑</div>
+            <div className={styles.appName}>Save your recovery code</div>
+          </div>
+          <p className={styles.codeIntro}>
+            This is the only way back into your account if you forget your password.
+            It is shown once and cannot be looked up later.
+          </p>
+          {/* Rendered as discrete groups so a narrow screen wraps between them
+              rather than mid-group, which is easy to transcribe wrongly. */}
+          <div className={styles.codeBox}>
+            {issued.code.split('-').map((group, i) => (
+              <span key={i} className={styles.codeGroup}>{group}</span>
+            ))}
+          </div>
+          <button type="button" className={styles.codeCopyBtn} onClick={copyCode}>
+            {copied ? '✓ Copied' : 'Copy code'}
+          </button>
+          <p className={styles.codeHint}>
+            Keep it somewhere other than this phone — a password manager or a note
+            you will still have if the phone is lost.
+          </p>
+          <button
+            type="button"
+            className={styles.submit}
+            onClick={() => authStore.save(issued.token, issued.user)}
+          >
+            I've saved it — continue
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,8 +146,23 @@ export default function Auth() {
               autoComplete="email"
             />
           </div>
+          {mode === 'reset' && (
+            <div className={styles.field}>
+              <label>Recovery code</label>
+              <input
+                type="text"
+                value={recoveryCode}
+                onChange={e => setRecoveryCode(e.target.value)}
+                placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
+                required
+                autoCapitalize="characters"
+                autoComplete="one-time-code"
+                spellCheck="false"
+              />
+            </div>
+          )}
           <div className={styles.field}>
-            <label>Password</label>
+            <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
             <input
               type="password"
               value={password}
@@ -93,7 +173,7 @@ export default function Auth() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </div>
-          {mode === 'register' && (
+          {(mode === 'register' || mode === 'reset') && (
             <div className={styles.field}>
               <label>Confirm password</label>
               <input
@@ -110,9 +190,23 @@ export default function Auth() {
           {success && <div className={styles.success}>{success}</div>}
           {error && <div className={styles.error}>{error}</div>}
           <button type="submit" className={styles.submit} disabled={submitting}>
-            {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            {submitting ? 'Please wait…'
+              : mode === 'login' ? 'Sign in'
+              : mode === 'reset' ? 'Reset password'
+              : 'Create account'}
           </button>
         </form>
+
+        {mode === 'login' && (
+          <button type="button" className={styles.linkBtn} onClick={() => switchMode('reset')}>
+            Forgot your password?
+          </button>
+        )}
+        {mode === 'reset' && (
+          <button type="button" className={styles.linkBtn} onClick={() => switchMode('login')}>
+            ← Back to sign in
+          </button>
+        )}
       </div>
     </div>
   );
