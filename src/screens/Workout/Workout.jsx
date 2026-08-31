@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MOVEMENTS } from '../../data/movements';
+import { MOVEMENTS, searchMovements } from '../../data/movements';
 import { buildWorkoutFromMovement, workoutNameForMovement } from '../../data/workoutBuilder';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import WorkoutBuilder from '../../components/WorkoutBuilder/WorkoutBuilder';
@@ -20,12 +20,8 @@ export default function Workout() {
   const allMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
 
   const visible = useMemo(() => {
-    let list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(m => m.name.toLowerCase().includes(q) || m.equipment.toLowerCase().includes(q));
-    }
-    return list;
+    const list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
+    return searchMovements(list, search);
   }, [allMovements, filter, search]);
 
   function startWorkout(movement) {

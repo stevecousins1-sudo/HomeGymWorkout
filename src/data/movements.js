@@ -9,6 +9,19 @@ export const EQUIPMENT_OPTIONS = [
   'Bodyweight', 'Kettlebell', 'Resistance band', 'EZ bar', 'Other',
 ];
 
+/**
+ * Filter a movement list by a free-text query, matching name or equipment.
+ * Shared by every place a movement is picked so they all behave the same.
+ * An empty query returns the list untouched.
+ */
+export function searchMovements(list, query) {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return list;
+  return list.filter(m =>
+    m.name.toLowerCase().includes(q) || m.equipment.toLowerCase().includes(q)
+  );
+}
+
 export const MOVEMENTS = [
   // Chest
   { name: 'Bench press',           category: 'Chest',     equipment: 'Barbell, Rack' },

@@ -655,6 +655,29 @@
   padding: 4px;
 }
 
+/* ── Search inside the swap / add sheets ───────────────────── */
+.sheetSearchRow {
+  padding: 10px 20px 4px;
+  flex-shrink: 0;
+}
+
+.sheetSearch {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  /* the global input rule holds this at 16px+ so iOS doesn't zoom on focus */
+}
+
+.sheetNoMatches {
+  padding: 18px 20px 22px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .swapList {
   overflow-y: auto;
   flex: 1;

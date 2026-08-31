@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MOVEMENTS } from '../../data/movements';
+import { MOVEMENTS, searchMovements } from '../../data/movements';
 import MovementForm from '../../components/MovementForm/MovementForm';
 import styles from './Movements.module.css';
 
@@ -39,12 +39,8 @@ export default function Movements() {
   const allMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
 
   const visible = useMemo(() => {
-    let list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(m => m.name.toLowerCase().includes(q) || m.equipment.toLowerCase().includes(q));
-    }
-    return list;
+    const list = filter === 'All' ? allMovements : allMovements.filter(m => m.category === filter);
+    return searchMovements(list, search);
   }, [allMovements, filter, search]);
 
   function handleSave(movement, unit) {

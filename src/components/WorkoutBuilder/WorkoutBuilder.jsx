@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MOVEMENTS } from '../../data/movements';
+import { MOVEMENTS, searchMovements } from '../../data/movements';
 import MovementForm from '../MovementForm/MovementForm';
 import styles from './WorkoutBuilder.module.css';
 
@@ -26,6 +26,7 @@ export default function WorkoutBuilder({ onStart, onClose }) {
   const [category, setCategory] = useState(null);
   const [selected, setSelected] = useState([]); // array of movement objects
   const [creating, setCreating] = useState(false);
+  const [search, setSearch]     = useState('');
 
   // Saved to the library and selected straight away — you opened this to build
   // a workout, not to manage a movement list.
@@ -66,11 +67,12 @@ export default function WorkoutBuilder({ onStart, onClose }) {
   // in any category shadows the original in every name-keyed lookup.
   const allMovements = useMemo(() => [...customMovements, ...MOVEMENTS], [customMovements]);
 
+  // Search narrows within the chosen muscle group, the same way search and the
+  // category pills combine on the Workout and Movements screens.
   const movList = useMemo(() => {
     if (!category) return [];
-    const inCategory = m => m.category === category;
-    return allMovements.filter(inCategory);
-  }, [category, allMovements]);
+    return searchMovements(allMovements.filter(m => m.category === category), search);
+  }, [category, allMovements, search]);
 
   // ── Step 1: category selection ──────────────────────────────
   if (!category) {
@@ -143,6 +145,22 @@ export default function WorkoutBuilder({ onStart, onClose }) {
           <button className={styles.createNewBtn} onClick={() => setCreating(true)}>
             + Create new movement
           </button>
+        )}
+
+        {!creating && (
+          <input
+            className={styles.searchInput}
+            type="search"
+            placeholder={`Search ${category} movements…`}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        )}
+
+        {!creating && movList.length === 0 && (
+          <div className={styles.noMatches}>
+            No {category} movements match “{search.trim()}”.
+          </div>
         )}
 
         {!creating && movList.map(m => {

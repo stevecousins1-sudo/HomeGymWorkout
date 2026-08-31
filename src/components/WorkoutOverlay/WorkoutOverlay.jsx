@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useWorkoutTimer } from '../../hooks/useWorkoutTimer';
 import { getExercisesForDay } from '../../data/exercises';
-import { MOVEMENTS } from '../../data/movements';
+import { MOVEMENTS, searchMovements } from '../../data/movements';
 import RestTimer from '../RestTimer/RestTimer';
 import WorkoutSummary from '../WorkoutSummary/WorkoutSummary';
 import MovementForm from '../MovementForm/MovementForm';
@@ -109,6 +109,8 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   const [prToast, setPrToast]                       = useState(null);
   const [addingExercise, setAddingExercise]         = useState(false);
   const [addFilter, setAddFilter]                   = useState('All');
+  const [addSearch, setAddSearch]                   = useState('');
+  const [swapSearch, setSwapSearch]                 = useState('');
   const [showSummary, setShowSummary]               = useState(false);
   const [sessionNotes, setSessionNotes]             = useState(draft?.notes ?? '');
   const [dragIdx, setDragIdx]                       = useState(null);
@@ -741,13 +743,19 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   }
 
   const swapCategory = swapIdx !== null ? getMovement(exercises[swapIdx]?.name)?.category : null;
-  const swapOptions  = swapCategory
-    ? pickerMovements.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name)
+  const swapOptions = swapCategory
+    ? searchMovements(
+        pickerMovements.filter(m => m.category === swapCategory && m.name !== exercises[swapIdx]?.name),
+        swapSearch,
+      )
     : [];
 
-  const addOptions = pickerMovements.filter(m =>
-    (addFilter === 'All' || m.category === addFilter) &&
-    !exercises.find(e => e.name === m.name)
+  const addOptions = searchMovements(
+    pickerMovements.filter(m =>
+      (addFilter === 'All' || m.category === addFilter) &&
+      !exercises.find(e => e.name === m.name)
+    ),
+    addSearch,
   );
 
   return (
@@ -998,6 +1006,20 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
               <span className={styles.swapTitle}>Swap · {swapCategory}</span>
               <button className={styles.swapClose} onClick={() => setSwapIdx(null)}>✕</button>
             </div>
+            <div className={styles.sheetSearchRow}>
+              <input
+                className={styles.sheetSearch}
+                type="search"
+                placeholder={`Search ${swapCategory} movements…`}
+                value={swapSearch}
+                onChange={e => setSwapSearch(e.target.value)}
+              />
+            </div>
+            {swapOptions.length === 0 && (
+              <div className={styles.sheetNoMatches}>
+                No {swapCategory} movements match “{swapSearch.trim()}”.
+              </div>
+            )}
             <div className={styles.swapList}>
               {swapOptions.map(m => (
                 <button key={m.name} className={styles.swapOption} onClick={() => swapExercise(m)}>
@@ -1038,6 +1060,17 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             )}
 
             {!creatingExercise && (
+            <div className={styles.sheetSearchRow}>
+              <input
+                className={styles.sheetSearch}
+                type="search"
+                placeholder="Search movements…"
+                value={addSearch}
+                onChange={e => setAddSearch(e.target.value)}
+              />
+            </div>
+            )}
+            {!creatingExercise && (
             <div className={styles.addFilterRow}>
               {MOV_CATEGORIES.map(cat => (
                 <button
@@ -1047,6 +1080,12 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                 >{cat}</button>
               ))}
             </div>
+            )}
+            {!creatingExercise && addOptions.length === 0 && (
+              <div className={styles.sheetNoMatches}>
+                No movements match “{addSearch.trim()}”
+                {addFilter !== 'All' ? ` in ${addFilter}` : ''}.
+              </div>
             )}
             {!creatingExercise && (
             <div className={styles.swapList}>

@@ -136,6 +136,24 @@
   line-height: 1.4;
 }
 
+.searchInput {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  /* the global input rule keeps this at 16px+ so iOS doesn't zoom on focus */
+}
+
+.noMatches {
+  padding: 18px 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* ── Create new movement (step 2) ────────────────────────── */
 .createNewBtn {
   width: 100%;
