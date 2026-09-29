@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import MachinePrompt from '../../components/MachinePrompt/MachinePrompt';
+import RecoverySheet from '../../components/RecoverySheet/RecoverySheet';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
-import { formatDate, getGreeting, todayISO } from '../../utils';
+import { formatDate, getGreeting, todayISO, localISO } from '../../utils';
 import { loadDraft, clearDraft } from '../../lib/draft';
 import styles from './Today.module.css';
 
@@ -19,7 +20,7 @@ function getWeekDates() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon);
     d.setDate(mon.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return localISO(d);
   });
 }
 
@@ -49,6 +50,7 @@ export default function Today() {
   const [pendingWorkout, setPendingWorkout] = useState(null);
   // A session interrupted by a reload, a crash or an OS eviction. Its age is
   // stamped once on load rather than recomputed on every render.
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [resumable, setResumable] = useState(() => {
     const d = loadDraft();
     if (!d) return null;
@@ -165,18 +167,47 @@ export default function Today() {
             <div className={styles.date}>{formatDate(today)}</div>
           </div>
           <div className={styles.headerActions}>
-            <button
-              className={styles.themeBtn}
-              onClick={() => setTheme(theme === 'dark' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'auto' : 'light') : theme === 'light' ? 'auto' : 'dark')}
-              title={`Theme: ${theme}`}
-            >
-              {theme === 'dark' ? '☀️' : theme === 'light' ? '🌙' : '🌓'}
-            </button>
+            <div className={styles.iconRow}>
+              <button
+                className={styles.themeBtn}
+                onClick={() => setTheme(theme === 'dark' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'auto' : 'light') : theme === 'light' ? 'auto' : 'dark')}
+                title={`Theme: ${theme}`}
+              >
+                {theme === 'dark' ? '☀️' : theme === 'light' ? '🌙' : '🌓'}
+              </button>
+              <button
+                className={styles.themeBtn}
+                onClick={() => setRecoveryOpen(true)}
+                aria-label="Recovery code"
+                title="Recovery code"
+              >
+                🔑
+              </button>
+            </div>
             <button className={styles.signOutBtn} onClick={logout} title={user?.email}>
               Sign out
             </button>
           </div>
         </div>
+
+        {/* ── No recovery code ────────────────────────────────────────────── */}
+        {/* `=== false` rather than falsy: a user object cached before this field
+            existed is undefined until the refresh on load fills it in, and
+            shouldn't flash a warning at someone who may well have a code. */}
+        {user?.hasRecoveryCode === false && (
+          <div className={`${styles.card} ${styles.cardAmber}`}>
+            <div className={styles.cardTitle}>Set up a recovery code</div>
+            <div className={styles.cardMeta}>
+              Without one, a forgotten password means losing access to your
+              training history for good.
+            </div>
+            <div className={styles.actions}>
+              <button className={styles.btnPrimary} onClick={() => setRecoveryOpen(true)}>
+                Create code
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Interrupted session ─────────────────────────────────────────── */}
         {resumable && !overlay && (() => {
@@ -396,6 +427,13 @@ export default function Today() {
       </div>
 
       {pendingWorkout && <MachinePrompt onAnswer={handleMachineAnswer} />}
+
+      {recoveryOpen && (
+        <RecoverySheet
+          hasCode={user?.hasRecoveryCode === true}
+          onClose={() => setRecoveryOpen(false)}
+        />
+      )}
 
       {overlay && (
         <WorkoutOverlay

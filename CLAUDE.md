@@ -17,9 +17,10 @@ npm run preview    # serve the built output
 cd api && npm run dev     # API with --watch
 ```
 
-`npm run lint` reports **38 pre-existing errors**. Compare against that
+`npm run lint` reports **39 pre-existing errors**. Compare against that
 baseline rather than expecting zero; most are `react-hooks` v7 rules firing on
-existing patterns, plus `api/` being CommonJS linted as ESM browser code.
+existing patterns, plus `api/` being CommonJS linted as ESM browser code (every
+new `require` in `api/` adds one more `no-undef`).
 
 **There is no test framework** — no test script, no test files, no test
 dependencies. Changes are verified by driving the real app. Chromium is
@@ -29,7 +30,13 @@ scratch directory and script against it. Pure modules (`lib/strength.js`,
 `lib/progression.js`, the generators) can be tested directly in Node, but only
 after bundling — the app relies on Vite's extensionless import resolution, so
 `node file.mjs` fails on `import ... from './movements'`. Bundle first with
-`npx esbuild test.mjs --bundle --format=esm --platform=node --outfile=out.mjs`.
+`npx esbuild test.mjs --bundle --format=esm --platform=node --outfile=out.mjs`
+(add `--define:import.meta.env.VITE_API_URL='"http://test"'` for anything that
+imports `lib/api.js`).
+
+Test anything involving dates in a non-UTC zone — `TZ=Europe/London node …`, or
+`timezoneId: 'Europe/London'` on a Playwright context. The container runs in
+UTC, which hides off-by-one-day bugs.
 
 ### Running the API locally
 
@@ -88,10 +95,23 @@ store library. Everything a user owns — history, active plan, custom movements
 templates, unit and rest preferences — hangs off `useApp()`.
 
 - **Durability.** Every mutation goes through `src/lib/outbox.js`: written to
-  localStorage first, then sent, with backoff and retry. 4xx is dropped as
-  permanent, everything else retries; settings patches coalesce. Do not add
-  direct `historyApi`/`settingsApi` writes for user actions — enqueue them, and
-  reconcile optimistic rows via `onOpSynced`.
+  localStorage first, then sent. It never silently deletes an op. An
+  unreachable server (no status, 408/429/502/503/504) is retried
+  indefinitely; 401/403 holds the queue until the next sign-in; any other 4xx,
+  or eight 5xx in a row, *parks* the op in `hgw_outbox_parked`, where the UI
+  offers Retry. Ops are tagged with their owner's user id and only sent under
+  that account. Settings patches coalesce. Do not add direct
+  `historyApi`/`settingsApi` writes for user actions — enqueue them, and
+  reconcile optimistic rows via `onOpSynced`. Unsynced workouts are rebuilt
+  from the outbox on load (`unsyncedWorkouts()`), not kept in memory.
+- **Dates** are local calendar days as `'YYYY-MM-DD'`. Use `todayISO()`,
+  `localISO(date)` and `addDaysISO()` from `utils.js`; never derive one with
+  `toISOString()`, which gives the UTC date and shifts a day either side of
+  midnight UTC. Plans stored by the old UTC code are repaired on load by
+  `repairShiftedSchedule()`.
+- **Recovery codes** are stored only as a bcrypt hash. Accounts created before
+  they existed have none; login/refresh return `user.hasRecoveryCode` so the
+  Today screen can prompt for one.
 - **In-progress workouts** are snapshotted to localStorage (`src/lib/draft.js`)
   because iOS evicts backgrounded PWAs without warning.
 - **Timers** must count off a wall-clock deadline, never by decrementing on an

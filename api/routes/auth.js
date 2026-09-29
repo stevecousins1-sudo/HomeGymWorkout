@@ -37,6 +37,14 @@ function normaliseCode(code) {
   return String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
 }
 
+/**
+ * The user as the client sees it. `hasRecoveryCode` lets the app prompt
+ * accounts created before recovery codes existed, which have none.
+ */
+function publicUser(row, hasRecoveryCode = !!row.recovery_code_hash) {
+  return { id: row.id, email: row.email, hasRecoveryCode };
+}
+
 async function issueRecoveryCode(userId) {
   const code = generateRecoveryCode();
   const hash = await bcrypt.hash(normaliseCode(code), 12);
@@ -59,7 +67,7 @@ router.post('/register', async (req, res) => {
     const recoveryCode = await issueRecoveryCode(user.id);
     res.status(201).json({
       token: makeToken(user),
-      user: { id: user.id, email: user.email },
+      user: publicUser(user, true),
       recoveryCode,
     });
   } catch (err) {
@@ -106,7 +114,7 @@ router.post('/reset-password', async (req, res) => {
     const recoveryCode = await issueRecoveryCode(user.id);
     res.json({
       token: makeToken(user),
-      user: { id: user.id, email: user.email },
+      user: publicUser(user, true),
       recoveryCode,
     });
   } catch (err) {
@@ -124,7 +132,7 @@ router.post('/login', async (req, res) => {
     if (!user || !await bcrypt.compare(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    res.json({ token: makeToken(user), user: { id: user.id, email: user.email } });
+    res.json({ token: makeToken(user), user: publicUser(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -133,10 +141,12 @@ router.post('/login', async (req, res) => {
 
 router.post('/refresh', requireAuth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email FROM users WHERE id = $1', [req.user.id]);
+    const result = await pool.query(
+      'SELECT id, email, recovery_code_hash FROM users WHERE id = $1', [req.user.id]
+    );
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'User not found' });
-    res.json({ token: makeToken(user), user: { id: user.id, email: user.email } });
+    res.json({ token: makeToken(user), user: publicUser(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

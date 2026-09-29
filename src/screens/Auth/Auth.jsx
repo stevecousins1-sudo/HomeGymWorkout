@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { auth, authStore } from '../../lib/api';
+import RecoveryCode from '../../components/RecoveryCode/RecoveryCode';
 import styles from './Auth.module.css';
 
 export default function Auth() {
@@ -14,7 +15,6 @@ export default function Auth() {
   // { code, token, user } after sign-up or a reset. Nothing can retrieve the
   // code afterwards, so the session is held here until it is acknowledged.
   const [issued, setIssued] = useState(null);
-  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -62,14 +62,6 @@ export default function Auth() {
     setSuccess('');
   }
 
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(issued.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch { /* clipboard blocked — the code is on screen to copy by hand */ }
-  }
-
   // ── One-time recovery code ─────────────────────────────────────────────────
   // Sign-in is deferred until this is acknowledged: once past this screen the
   // code cannot be retrieved, only replaced.
@@ -85,20 +77,7 @@ export default function Auth() {
             This is the only way back into your account if you forget your password.
             It is shown once and cannot be looked up later.
           </p>
-          {/* Rendered as discrete groups so a narrow screen wraps between them
-              rather than mid-group, which is easy to transcribe wrongly. */}
-          <div className={styles.codeBox}>
-            {issued.code.split('-').map((group, i) => (
-              <span key={i} className={styles.codeGroup}>{group}</span>
-            ))}
-          </div>
-          <button type="button" className={styles.codeCopyBtn} onClick={copyCode}>
-            {copied ? '✓ Copied' : 'Copy code'}
-          </button>
-          <p className={styles.codeHint}>
-            Keep it somewhere other than this phone — a password manager or a note
-            you will still have if the phone is lost.
-          </p>
+          <RecoveryCode code={issued.code} />
           <button
             type="button"
             className={styles.submit}

@@ -59,6 +59,15 @@ function AppShell() {
           )}
         </div>
       )}
+      {syncState?.failedWorkouts > 0 && (
+        <div className={styles.errorBanner}>
+          <span className={styles.syncText}>
+            {syncState.failedWorkouts} workout{syncState.failedWorkouts > 1 ? 's' : ''} couldn't be
+            saved to your account. {syncState.failedWorkouts > 1 ? "They're" : "It's"} kept on this device.
+          </span>
+          <button className={styles.syncRetryBtn} onClick={retrySync}>Retry</button>
+        </div>
+      )}
       <main className={styles.content}>
         <Routes>
           <Route path="/" element={<Today />} />

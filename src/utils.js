@@ -24,6 +24,30 @@ export function getGreeting() {
   return 'Good evening';
 }
 
+// ── Calendar dates ──────────────────────────────────────────────────────────
+//
+// Dates are stored as 'YYYY-MM-DD' strings meaning the user's *local* calendar
+// day. They must never come from toISOString(), which gives the UTC date: east
+// of UTC that turns local midnight into the previous day, and west of UTC it
+// turns a late evening into tomorrow.
+
+/** The local calendar date of a Date, as 'YYYY-MM-DD'. */
+export function localISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Shift a 'YYYY-MM-DD' date by whole days, in calendar terms. */
+export function addDaysISO(iso, days) {
+  // Noon, not midnight: some zones change clocks at midnight, so local
+  // midnight can fail to exist on the day being parsed.
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return localISO(d);
+}
+
 export function generateSchedule(plan, startDateStr) {
   const schedule = [];
   const start = new Date(startDateStr + 'T00:00:00');
@@ -37,7 +61,7 @@ export function generateSchedule(plan, startDateStr) {
       d.setDate(monday.getDate() + week * 7 + dayOffset);
       if (d < start) return;
       schedule.push({
-        date: d.toISOString().split('T')[0],
+        date: localISO(d),
         dayName: plan.dayNames[idx % plan.dayNames.length],
         week: week + 1,
         skipped: false,
@@ -49,7 +73,44 @@ export function generateSchedule(plan, startDateStr) {
 }
 
 export function todayISO() {
-  return new Date().toISOString().split('T')[0];
+  return localISO(new Date());
+}
+
+/**
+ * Put back plan dates written by the old UTC-based generateSchedule.
+ *
+ * Anywhere east of UTC that code stored each session one day early. Only the
+ * entries generated while the offset was positive were affected, so a plan
+ * that crosses a clock change can be part-shifted, part-correct — this works
+ * entry by entry rather than trusting the whole plan to be one or the other.
+ *
+ * It only rewrites a schedule that is recognisably this bug: same length and
+ * sessions as the plan's definition regenerates to, every date either correct
+ * or exactly one day early, and at least one early. Anything else is left
+ * alone. Returns the plan unchanged (same object) when there is nothing to do.
+ */
+export function repairShiftedSchedule(activePlan, planDef) {
+  const stored = activePlan?.schedule;
+  if (!stored?.length || !activePlan.startDate || !planDef) return activePlan;
+
+  const expected = generateSchedule(planDef, activePlan.startDate);
+  if (expected.length !== stored.length) return activePlan;
+
+  let shifted = 0;
+  for (let i = 0; i < stored.length; i++) {
+    const s = stored[i], e = expected[i];
+    if (s.dayName !== e.dayName || s.week !== e.week) return activePlan;
+    if (s.date === e.date) continue;
+    if (addDaysISO(s.date, 1) !== e.date) return activePlan;
+    shifted++;
+  }
+  if (!shifted) return activePlan;
+
+  // Only the date moves; done/skipped stay with the session they belong to.
+  return {
+    ...activePlan,
+    schedule: stored.map((s, i) => ({ ...s, date: expected[i].date })),
+  };
 }
 
 export function convertWeight(value, fromUnit, toUnit) {

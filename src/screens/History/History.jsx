@@ -86,7 +86,7 @@ export default function History() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `workout-history-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `workout-history-${todayISO()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

@@ -1,6 +1,8 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { authStore, auth, historyApi, settingsApi } from '../lib/api';
-import { enqueue, flush, subscribe as subscribeOutbox, onOpSynced, onOpFailed } from '../lib/outbox';
+import { enqueue, flush, retryParked, unsyncedWorkouts, subscribe as subscribeOutbox, onOpSynced, onOpFailed } from '../lib/outbox';
+import { PLANS } from '../data/plans';
+import { repairShiftedSchedule } from '../utils';
 
 const AppContext = createContext(null);
 
@@ -40,7 +42,7 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem('gymTheme') || 'auto');
   const [bodyWeightLog, setBodyWeightLogState] = useState([]);
   const [hasMachines, setHasMachinesState] = useState(null);
-  const [syncState, setSyncState] = useState({ pending: 0, pendingWorkouts: 0, syncing: false, lastError: null });
+  const [syncState, setSyncState] = useState({ pending: 0, pendingWorkouts: 0, failedWorkouts: 0, syncing: false, lastError: null });
 
   const unitPrefsRef = useRef({});
   const restPrefsRef = useRef({});
@@ -121,18 +123,29 @@ export function AppProvider({ children }) {
 
       if (histRes.status === 'fulfilled') {
         const serverEntries = histRes.value.map(recordToEntry);
-        // Workouts still sitting in the outbox aren't on the server yet —
-        // keep them on screen instead of letting the fetch erase them.
-        setHistory(prev => {
-          const unsynced = prev.filter(h => h.pending || h.syncFailed);
-          if (!unsynced.length) return serverEntries;
-          return [...unsynced, ...serverEntries].sort((a, b) => b.date.localeCompare(a.date));
+        // Workouts still in the outbox aren't on the server yet, so the fetch
+        // doesn't return them. Rebuild their rows from the outbox itself —
+        // it's persisted, so they survive a reload rather than vanishing from
+        // History until they sync.
+        const unsynced = unsyncedWorkouts().map(({ op, parked }) => {
+          const clientId = op.meta?.clientId ?? op.id;
+          return { ...recordToEntry({ ...op.body, id: clientId }), clientId, pending: !parked, syncFailed: parked };
         });
+        setHistory(unsynced.length
+          ? [...unsynced, ...serverEntries].sort((a, b) => b.date.localeCompare(a.date))
+          : serverEntries);
       }
 
       if (settingsRes.status === 'fulfilled') {
         const s = settingsRes.value;
-        setActivePlanState(s.active_plan || null);
+        // Plans generated before local-date handling can have every session
+        // stored a day early. Fix them once, on the way in, and save the fix.
+        const planDefs = [...PLANS, ...(s.custom_plans || [])];
+        const loadedPlan = s.active_plan || null;
+        const activeDef = loadedPlan && planDefs.find(p => p.id === loadedPlan.planId);
+        const repaired = repairShiftedSchedule(loadedPlan, activeDef);
+        if (repaired !== loadedPlan) enqueue('settings.patch', { active_plan: repaired });
+        setActivePlanState(repaired);
         setUnitPrefsState(s.unit_prefs || {});
         setGlobalUnitState(s.global_unit || 'lb');
         setRestPrefsState(s.rest_prefs || {});
@@ -366,6 +379,17 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // "Sync now" / "Retry": re-queue anything the server previously rejected as
+  // well as nudging the queue, and show those workouts as pending again.
+  const retrySync = useCallback(() => {
+    const requeued = new Set(retryParked().map(op => op.meta?.clientId).filter(Boolean));
+    if (requeued.size) {
+      setHistory(prev => prev.map(h =>
+        requeued.has(h.clientId) ? { ...h, pending: true, syncFailed: false } : h
+      ));
+    }
+  }, []);
+
   const logout = useCallback(() => {
     authStore.clear();
   }, []);
@@ -408,7 +432,7 @@ export function AppProvider({ children }) {
       setHasMachines,
       retryLoad: loadUserData,
       syncState,
-      retrySync: flush,
+      retrySync,
       logout,
     }}>
       {children}
