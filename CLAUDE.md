@@ -100,7 +100,10 @@ templates, unit and rest preferences — hangs off `useApp()`.
   indefinitely; 401/403 holds the queue until the next sign-in; any other 4xx,
   or eight 5xx in a row, *parks* the op in `hgw_outbox_parked`, where the UI
   offers Retry. Ops are tagged with their owner's user id and only sent under
-  that account. Settings patches coalesce. Do not add direct
+  that account. Settings patches coalesce, but never into the op that is
+  currently being sent — its request body is already serialised and the op is
+  deleted on success, so a change merged in mid-flight would be silently lost
+  (`inFlightId` guards this). Do not add direct
   `historyApi`/`settingsApi` writes for user actions — enqueue them, and
   reconcile optimistic rows via `onOpSynced`. Unsynced workouts are rebuilt
   from the outbox on load (`unsyncedWorkouts()`), not kept in memory.
@@ -112,6 +115,15 @@ templates, unit and rest preferences — hangs off `useApp()`.
 - **Recovery codes** are stored only as a bcrypt hash. Accounts created before
   they existed have none; login/refresh return `user.hasRecoveryCode` so the
   Today screen can prompt for one.
+- **Drop sets** live on the set they follow: `set.drops = [{ weight, reps }]`
+  in the exercise's unit, where the set's own weight/reps are the *starting*
+  values. A set with drops is still one set in set counts, but drop work counts
+  towards volume — always compute that with `setVolumeLb()` (`lib/strength.js`)
+  rather than re-deriving weight × reps, and strip blank drops with
+  `cleanDrops()` before saving. Drops are deliberately excluded from e1RM,
+  records and progression: they are fatigued reps at a lighter weight and
+  would inflate every estimate. A unit toggle must convert drop weights too.
+  No schema change — `exercises` is JSONB.
 - **In-progress workouts** are snapshotted to localStorage (`src/lib/draft.js`)
   because iOS evicts backgrounded PWAs without warning.
 - **Timers** must count off a wall-clock deadline, never by decrementing on an

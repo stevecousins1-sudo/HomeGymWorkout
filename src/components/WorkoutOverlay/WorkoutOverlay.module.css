@@ -942,3 +942,63 @@
 .rpeBtnActive {
   color: #fff;
 }
+
+/* ── Drop sets ─────────────────────────────────────────────── */
+.dropRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px 8px 11px;
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--border-strong);
+  border-top: 1px dashed var(--border);
+}
+
+.dropRowDone {
+  background: var(--brand-light);
+  border-left-color: var(--brand);
+}
+
+.dropLabel {
+  min-width: 46px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dropRemove {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-hint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sits under a set that hasn't been ticked yet, so keep it out of the way. */
+.extrasBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 4px;
+  background: var(--bg-primary);
+}
+
+.addDropBtn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.historyDrops {
+  color: var(--text-secondary);
+}

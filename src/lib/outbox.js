@@ -29,6 +29,9 @@ let listeners  = [];
 let flushing   = false;
 let retryTimer = null;
 let lastError  = null;
+// The op whose request is on the wire right now. Its body has already been
+// serialised, so nothing may be merged into it — see enqueue().
+let inFlightId = null;
 
 function loadKey(key) {
   try {
@@ -116,7 +119,9 @@ function nextId() {
 export function enqueue(kind, body, meta = null) {
   const owner = currentUserId();
   if (kind === 'settings.patch') {
-    const existing = queue.find(op => op.kind === 'settings.patch' && op.owner === owner);
+    // Not the op that's mid-send: its request already carries the old body, and
+    // it's deleted on success, so a change merged in now would vanish with it.
+    const existing = queue.find(op => op.kind === 'settings.patch' && op.owner === owner && op.id !== inFlightId);
     if (existing) {
       existing.body = { ...existing.body, ...body };
       existing.attempts = 0;
@@ -239,12 +244,15 @@ export async function flush() {
       if (!isMine(op, me)) { i++; continue; }
 
       try {
+        inFlightId = op.id;
         const result = await send(op);
+        inFlightId = null;
         remove(op.id);
         lastError = null;
         onSynced(op, result);
         emit();
       } catch (err) {
+        inFlightId = null;
         lastError = err?.message || 'Sync failed';
         const kind = classify(err);
 

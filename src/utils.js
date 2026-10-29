@@ -137,3 +137,8 @@ export function getDefaultUnit(movementName) {
     lower.includes('clean') || lower.includes('snatch') || lower.includes('row');
   return isBarbell ? 'kg' : 'lb';
 }
+
+/** "80 × 6 ↓ 60 × 8" — the drops that followed a set, for read-only display. */
+export function formatDrops(drops) {
+  return (drops || []).map(d => `${d.weight || '—'} × ${d.reps || '—'}`).join(' ↓ ');
+}

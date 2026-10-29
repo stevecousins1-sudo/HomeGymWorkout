@@ -44,6 +44,30 @@ export function e1rm(weight, reps) {
   return (epley + brzycki) / 2;
 }
 
+/**
+ * Drop sets. A set's own weight and reps are where it *started*; `drops` is the
+ * chain of lighter mini-sets performed straight after it, each `{ weight, reps }`
+ * in the exercise's unit. A set with drops is still one set — it counts once in
+ * set totals — but the work done in the drops counts towards volume.
+ *
+ * Drops are deliberately left out of e1RM, records and progression: they're
+ * performed fatigued, so a drop of 12 at a light weight says nothing about
+ * what the lifter can do fresh, and would inflate every estimate.
+ */
+
+/** Drops with something entered, reduced to the stored `{ weight, reps }` shape. */
+export function cleanDrops(drops) {
+  return (drops || [])
+    .filter(d => String(d?.weight ?? '').trim() !== '' || String(d?.reps ?? '').trim() !== '')
+    .map(d => ({ weight: d.weight ?? '', reps: d.reps ?? '' }));
+}
+
+/** Volume of one set in pounds: weight × reps, plus every drop that followed it. */
+export function setVolumeLb(set, unit) {
+  const chain = [set, ...(set?.drops || [])];
+  return chain.reduce((sum, s) => sum + toLb(s?.weight, unit) * (parseFloat(s?.reps) || 0), 0);
+}
+
 /** e1RM of a single set, normalised to pounds. */
 export function setE1rmLb(set, unit) {
   return e1rm(toLb(set?.weight, unit), set?.reps);

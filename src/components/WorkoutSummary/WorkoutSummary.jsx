@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatTimer, formatVolume } from '../../utils';
-import { e1rm, toLb, fromLb } from '../../lib/strength';
+import { e1rm, toLb, fromLb, setVolumeLb } from '../../lib/strength';
 import styles from './WorkoutSummary.module.css';
 
 function buildShareText(workoutName, elapsed, exercises, units, totalVolume, prsHit) {
@@ -14,7 +14,8 @@ function buildShareText(workoutName, elapsed, exercises, units, totalVolume, prs
     const unit = units[ex.name] || 'lb';
     const doneSets = ex.sets.filter(s => s.done);
     const maxW = doneSets.reduce((m, s) => Math.max(m, parseFloat(s.weight) || 0), 0);
-    lines.push(`• ${ex.name} — ${doneSets.length} sets${maxW > 0 ? ` @ ${maxW} ${unit}` : ''}`);
+    const dropSets = doneSets.filter(s => s.drops?.length > 0).length;
+    lines.push(`• ${ex.name} — ${doneSets.length} sets${maxW > 0 ? ` @ ${maxW} ${unit}` : ''}${dropSets > 0 ? ` (${dropSets} with drops)` : ''}`);
   });
   if (prsHit.length) {
     lines.push('', '🏆 PRs: ' + prsHit.map(p => p.name).join(', '));
@@ -36,11 +37,7 @@ export default function WorkoutSummary({
 
   const totalVolume = exercises.reduce((acc, ex) => {
     const unit = units[ex.name] || 'lb';
-    return acc + ex.sets.filter(s => s.done).reduce((a, s) => {
-      const w = parseFloat(s.weight) || 0;
-      const r = parseFloat(s.reps) || 0;
-      return a + (unit === 'kg' ? w * 2.2046 : w) * r;
-    }, 0);
+    return acc + ex.sets.filter(s => s.done).reduce((a, s) => a + setVolumeLb(s, unit), 0);
   }, 0);
 
   // A PR is a new best estimated 1RM (or simply the heaviest weight ever
@@ -139,11 +136,13 @@ export default function WorkoutSummary({
             const unit     = units[ex.name] || 'lb';
             const doneSets = ex.sets.filter(s => s.done);
             const maxW     = doneSets.reduce((m, s) => Math.max(m, parseFloat(s.weight) || 0), 0);
+            const dropSets = doneSets.filter(s => s.drops?.length > 0).length;
             return (
               <div key={i} className={styles.exRow}>
                 <div className={styles.exName}>{ex.name}</div>
                 <div className={styles.exMeta}>
                   {doneSets.length} sets{maxW > 0 ? ` · ${maxW} ${unit} max` : ''}
+                  {dropSets > 0 ? ` · ${dropSets} with drops` : ''}
                 </div>
               </div>
             );

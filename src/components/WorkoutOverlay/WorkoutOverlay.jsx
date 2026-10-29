@@ -11,9 +11,9 @@ import { calcPlates } from '../../lib/plates';
 import { padToMinDuration } from '../../lib/workoutPadder';
 import { saveDraft, clearDraft } from '../../lib/draft';
 import { getProgression, ACTION_ICON } from '../../lib/progression';
-import { buildRecords, e1rm, toLb } from '../../lib/strength';
+import { buildRecords, e1rm, toLb, setVolumeLb, cleanDrops } from '../../lib/strength';
 import { applyMachineSubs } from '../../data/machineSubs';
-import { formatTimer, formatDate, todayISO, convertWeight, getDefaultUnit } from '../../utils';
+import { formatTimer, formatDate, formatDrops, todayISO, convertWeight, getDefaultUnit } from '../../utils';
 import { getBuildLabel } from '../../lib/version';
 import styles from './WorkoutOverlay.module.css';
 
@@ -23,6 +23,7 @@ const REST_MIN       = 15;
 const REST_MAX       = 300;
 const SWIPE_LOCK_PX  = 60;
 const SWIPE_DELETE_W = 72;
+const MAX_DROPS      = 5;
 
 const BUILD_LABEL    = getBuildLabel();
 const MOV_CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
@@ -191,7 +192,14 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const oldUnit = units[exName];
     if (oldUnit === newUnit) return;
     setExercises(prev => prev.map((ex, i) =>
-      i !== exIdx ? ex : { ...ex, sets: ex.sets.map(s => ({ ...s, weight: convertWeight(s.weight, oldUnit, newUnit) })) }
+      i !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map(s => ({
+          ...s,
+          weight: convertWeight(s.weight, oldUnit, newUnit),
+          ...(s.drops && { drops: s.drops.map(d => ({ ...d, weight: convertWeight(d.weight, oldUnit, newUnit) })) }),
+        })),
+      }
     ));
     setUnits(prev => ({ ...prev, [exName]: newUnit }));
     setUnitPref(exName, newUnit);
@@ -300,6 +308,45 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
   function updateRPE(exIdx, setIdx, rpe) {
     setExercises(prev => prev.map((ex, ei) =>
       ei !== exIdx ? ex : { ...ex, sets: ex.sets.map((s, si) => si !== setIdx ? s : { ...s, rpe }) }
+    ));
+  }
+
+  // ── Drop sets ────────────────────────────────────────────────────────────────
+  // A drop is a lighter mini-set done straight after its parent, so it lives on
+  // the parent set and is saved, unit-converted and deleted along with it.
+  function addDrop(exIdx, setIdx) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((s, si) => si !== setIdx ? s : {
+          ...s, drops: [...(s.drops ?? []), { weight: '', reps: '' }],
+        }),
+      }
+    ));
+  }
+
+  function updateDrop(exIdx, setIdx, dropIdx, field, value) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((s, si) => si !== setIdx ? s : {
+          ...s, drops: s.drops.map((d, di) => di !== dropIdx ? d : { ...d, [field]: value }),
+        }),
+      }
+    ));
+  }
+
+  function removeDrop(exIdx, setIdx, dropIdx) {
+    setExercises(prev => prev.map((ex, ei) =>
+      ei !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((s, si) => {
+          if (si !== setIdx) return s;
+          const { drops, ...rest } = s;
+          const kept = drops.filter((_, di) => di !== dropIdx);
+          return kept.length ? { ...rest, drops: kept } : rest;
+        }),
+      }
     ));
   }
 
@@ -473,11 +520,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.done).length, 0);
     const totalVolume = exercises.reduce((acc, ex) => {
       const unit = units[ex.name];
-      return acc + ex.sets.filter(s => s.done).reduce((a, s) => {
-        const w = parseFloat(s.weight) || 0;
-        const r = parseFloat(s.reps) || 0;
-        return a + (unit === 'kg' ? w * 2.2046 : w) * r;
-      }, 0);
+      return acc + ex.sets.filter(s => s.done).reduce((a, s) => a + setVolumeLb(s, unit), 0);
     }, 0);
     const today = todayISO();
     if (activePlan) {
@@ -487,7 +530,10 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const exerciseData = exercises.map(ex => ({
       name: ex.name, unit: units[ex.name], prescription: ex.prescription,
       // RPE is what lets the next session autoregulate — it has to survive the save.
-      sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps, done: s.done, rpe: s.rpe })),
+      sets: ex.sets.map(s => {
+        const drops = cleanDrops(s.drops);
+        return { weight: s.weight, reps: s.reps, done: s.done, rpe: s.rpe, ...(drops.length > 0 && { drops }) };
+      }),
       warmupSets: (ex.warmupSets ?? []).map(s => ({ weight: s.weight, reps: s.reps, done: s.done })),
     }));
     addHistory({
@@ -654,6 +700,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const last     = !isWarmup ? lastData?.sets?.[setIdx] : null;
     const lastW    = last?.weight ? convertWeight(last.weight, lastData.unit, unit) : null;
 
+    const drops        = isWarmup ? [] : set.drops ?? [];
     const canRemove    = isWarmup ? true : ex.sets.length > 1;
     const isFlash      = !isWarmup && flashSet === key;
     const isLocked     = lockedSwipe === key;
@@ -720,22 +767,61 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             </button>
           </div>
         </div>
-        {set.done && !isWarmup && (
-          <div className={styles.rpeBar}>
-            <span className={styles.rpeLabel}>RPE</span>
-            {[6, 7, 8, 9, 10].map(r => {
-              const color = r <= 7 ? 'var(--green)' : r <= 9 ? 'var(--amber)' : 'var(--red)';
-              return (
-                <button
-                  key={r}
-                  className={`${styles.rpeBtn}${set.rpe === r ? ' ' + styles.rpeBtnActive : ''}`}
-                  style={set.rpe === r ? { background: color, borderColor: color } : {}}
-                  onClick={() => updateRPE(exIdx, setIdx, set.rpe === r ? undefined : r)}
-                >
-                  {r}
-                </button>
-              );
-            })}
+        {!isWarmup && drops.map((d, di) => {
+          const lastD = last?.drops?.[di];
+          const lastDW = lastD?.weight ? convertWeight(lastD.weight, lastData.unit, unit) : null;
+          return (
+            <div key={`${key}-d${di}`} className={`${styles.dropRow}${set.done ? ' ' + styles.dropRowDone : ''}`}>
+              <span className={styles.dropLabel}>↓ Drop{drops.length > 1 ? ` ${di + 1}` : ''}</span>
+              <input
+                className={styles.weightInput}
+                type="number" inputMode="decimal"
+                aria-label={`Drop ${di + 1} weight`}
+                placeholder={lastDW || '—'}
+                value={d.weight}
+                onChange={e => updateDrop(exIdx, setIdx, di, 'weight', e.target.value)}
+              />
+              <span className={styles.unitLabel}>{unit}</span>
+              <span className={styles.times}>×</span>
+              <input
+                className={styles.weightInput}
+                type="number" inputMode="numeric"
+                aria-label={`Drop ${di + 1} reps`}
+                placeholder={lastD?.reps || '—'}
+                value={d.reps}
+                onChange={e => updateDrop(exIdx, setIdx, di, 'reps', e.target.value)}
+              />
+              <button
+                className={styles.dropRemove}
+                aria-label={`Remove drop ${di + 1}`}
+                onClick={() => removeDrop(exIdx, setIdx, di)}
+              >✕</button>
+            </div>
+          );
+        })}
+        {!isWarmup && (set.done || drops.length < MAX_DROPS) && (
+          <div className={set.done ? styles.rpeBar : styles.extrasBar}>
+            {set.done && (
+              <>
+                <span className={styles.rpeLabel}>RPE</span>
+                {[6, 7, 8, 9, 10].map(r => {
+                  const color = r <= 7 ? 'var(--green)' : r <= 9 ? 'var(--amber)' : 'var(--red)';
+                  return (
+                    <button
+                      key={r}
+                      className={`${styles.rpeBtn}${set.rpe === r ? ' ' + styles.rpeBtnActive : ''}`}
+                      style={set.rpe === r ? { background: color, borderColor: color } : {}}
+                      onClick={() => updateRPE(exIdx, setIdx, set.rpe === r ? undefined : r)}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+            {drops.length < MAX_DROPS && (
+              <button className={styles.addDropBtn} onClick={() => addDrop(exIdx, setIdx)}>+ Drop</button>
+            )}
           </div>
         )}
       </Fragment>
@@ -925,7 +1011,12 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
                                   : done.map((s, di) => (
                                       <div key={di} className={styles.historySetRow}>
                                         <span className={styles.historySetNum}>Set {di + 1}</span>
-                                        <span className={styles.historySetData}>{s.weight || '—'} {sUnit} × {s.reps || '—'} reps</span>
+                                        <span className={styles.historySetData}>
+                                          {s.weight || '—'} {sUnit} × {s.reps || '—'} reps
+                                          {s.drops?.length > 0 && (
+                                            <span className={styles.historyDrops}> ↓ {formatDrops(s.drops)}</span>
+                                          )}
+                                        </span>
                                       </div>
                                     ))
                                 }

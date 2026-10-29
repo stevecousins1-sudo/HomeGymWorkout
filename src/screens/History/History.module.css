@@ -264,6 +264,44 @@
   flex-shrink: 0;
 }
 
+/* A drop belongs to the set above it, so it reads as part of that set. */
+.dropRowDetail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 11px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.dropRemoveBtn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-hint);
+}
+
+.addDropRow {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.addDropBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* ── Correcting a logged session ───────────────────────────── */
 .editRow {
   display: flex;

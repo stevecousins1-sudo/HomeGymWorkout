@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, Fragment } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getExercisesForDay } from '../../data/exercises';
 import { MOVEMENTS } from '../../data/movements';
@@ -6,7 +6,7 @@ import WorkoutOverlay from '../../components/WorkoutOverlay/WorkoutOverlay';
 import ProgressChart from '../../components/ProgressChart/ProgressChart';
 import BodyWeightChart from '../../components/BodyWeightChart/BodyWeightChart';
 import { formatDate, formatDuration, formatVolume, todayISO } from '../../utils';
-import { buildRecords, fromLb } from '../../lib/strength';
+import { buildRecords, fromLb, setVolumeLb, cleanDrops } from '../../lib/strength';
 import styles from './History.module.css';
 
 const CAT_ORDER = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
@@ -124,11 +124,7 @@ export default function History() {
     const sets = (entry.exercises || []).reduce((a, ex) => a + done(ex).length, 0);
     const volume = (entry.exercises || []).reduce((a, ex) => {
       const unit = ex.unit || 'lb';
-      return a + done(ex).reduce((x, s) => {
-        const w = parseFloat(s.weight) || 0;
-        const r = parseFloat(s.reps) || 0;
-        return x + (unit === 'kg' ? w * 2.2046 : w) * r;
-      }, 0);
+      return a + done(ex).reduce((x, s) => x + setVolumeLb(s, unit), 0);
     }, 0);
     return { ...entry, sets, volume: Math.round(volume) };
   }
@@ -147,8 +143,47 @@ export default function History() {
     }));
   }
 
+  // Drops can be added, corrected or removed after the fact, same as sets. One
+  // that ends up empty is dropped on save rather than kept as a blank row.
+  function mapSet(prev, exIdx, setIdx, fn) {
+    return recalc({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((s, j) => j !== setIdx ? s : fn(s)),
+      }),
+    });
+  }
+
+  function addDropToSet(exIdx, setIdx) {
+    setEditing(prev => mapSet(prev, exIdx, setIdx, s => ({ ...s, drops: [...(s.drops ?? []), { weight: '', reps: '' }] })));
+  }
+
+  function editDrop(exIdx, setIdx, dropIdx, field, value) {
+    setEditing(prev => mapSet(prev, exIdx, setIdx, s => ({
+      ...s, drops: s.drops.map((d, k) => k !== dropIdx ? d : { ...d, [field]: value }),
+    })));
+  }
+
+  function removeDropFromSet(exIdx, setIdx, dropIdx) {
+    setEditing(prev => mapSet(prev, exIdx, setIdx, s => {
+      const { drops, ...rest } = s;
+      const kept = drops.filter((_, k) => k !== dropIdx);
+      return kept.length ? { ...rest, drops: kept } : rest;
+    }));
+  }
+
   function saveEdit() {
-    const next = recalc(editing);
+    const next = recalc({
+      ...editing,
+      exercises: editing.exercises.map(ex => ({
+        ...ex,
+        sets: ex.sets.map(({ drops, ...s }) => {
+          const kept = cleanDrops(drops);
+          return kept.length ? { ...s, drops: kept } : s;
+        }),
+      })),
+    });
     updateHistoryEntry(next.id, next);
     setDetail(next);
     setEditing(null);
@@ -235,37 +270,79 @@ export default function History() {
                       <div className={styles.exName}>{ex.name}</div>
                       <span className={styles.setBadge}>{doneSets.length}/{ex.sets.length} sets</span>
                     </div>
-                    {ex.sets.map((s, si) => editing ? (
-                      <div key={si} className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
-                        <span className={styles.setNumDetail}>Set {si + 1}</span>
-                        <input
-                          className={styles.editInput}
-                          type="number" inputMode="decimal"
-                          value={s.weight ?? ''}
-                          onChange={e => editSet(i, si, 'weight', e.target.value)}
-                        />
-                        <span className={styles.editUnit}>{ex.unit}</span>
-                        <span className={styles.editTimes}>×</span>
-                        <input
-                          className={styles.editInput}
-                          type="number" inputMode="numeric"
-                          value={s.reps ?? ''}
-                          onChange={e => editSet(i, si, 'reps', e.target.value)}
-                        />
-                        <button
-                          className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`}
-                          aria-label={s.done ? 'Mark set not done' : 'Mark set done'}
-                          onClick={() => editSet(i, si, 'done', !s.done)}
-                        />
-                      </div>
-                    ) : (
-                      <div key={si} className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
-                        <span className={styles.setNumDetail}>Set {si + 1}</span>
-                        <span className={styles.setData}>
-                          {s.weight || '—'} {ex.unit} × {s.reps || '—'} reps
-                        </span>
-                        <div className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`} />
-                      </div>
+                    {ex.sets.map((s, si) => (
+                      <Fragment key={si}>
+                        {editing ? (
+                          <div className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                            <span className={styles.setNumDetail}>Set {si + 1}</span>
+                            <input
+                              className={styles.editInput}
+                              type="number" inputMode="decimal"
+                              value={s.weight ?? ''}
+                              onChange={e => editSet(i, si, 'weight', e.target.value)}
+                            />
+                            <span className={styles.editUnit}>{ex.unit}</span>
+                            <span className={styles.editTimes}>×</span>
+                            <input
+                              className={styles.editInput}
+                              type="number" inputMode="numeric"
+                              value={s.reps ?? ''}
+                              onChange={e => editSet(i, si, 'reps', e.target.value)}
+                            />
+                            <button
+                              className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`}
+                              aria-label={s.done ? 'Mark set not done' : 'Mark set done'}
+                              onClick={() => editSet(i, si, 'done', !s.done)}
+                            />
+                          </div>
+                        ) : (
+                          <div className={`${styles.setRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                            <span className={styles.setNumDetail}>Set {si + 1}</span>
+                            <span className={styles.setData}>
+                              {s.weight || '—'} {ex.unit} × {s.reps || '—'} reps
+                            </span>
+                            <div className={`${styles.checkCircle}${s.done ? ' ' + styles.checkDone : ''}`} />
+                          </div>
+                        )}
+                        {(s.drops ?? []).map((d, di) => editing ? (
+                          <div key={di} className={`${styles.dropRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                            <span className={styles.setNumDetail}>↓ Drop</span>
+                            <input
+                              className={styles.editInput}
+                              type="number" inputMode="decimal"
+                              aria-label={`Set ${si + 1} drop ${di + 1} weight`}
+                              value={d.weight ?? ''}
+                              onChange={e => editDrop(i, si, di, 'weight', e.target.value)}
+                            />
+                            <span className={styles.editUnit}>{ex.unit}</span>
+                            <span className={styles.editTimes}>×</span>
+                            <input
+                              className={styles.editInput}
+                              type="number" inputMode="numeric"
+                              aria-label={`Set ${si + 1} drop ${di + 1} reps`}
+                              value={d.reps ?? ''}
+                              onChange={e => editDrop(i, si, di, 'reps', e.target.value)}
+                            />
+                            <button
+                              className={styles.dropRemoveBtn}
+                              aria-label={`Remove set ${si + 1} drop ${di + 1}`}
+                              onClick={() => removeDropFromSet(i, si, di)}
+                            >✕</button>
+                          </div>
+                        ) : (
+                          <div key={di} className={`${styles.dropRowDetail}${s.done ? ' ' + styles.setDone : ''}`}>
+                            <span className={styles.setNumDetail}>↓ Drop</span>
+                            <span className={styles.setData}>
+                              {d.weight || '—'} {ex.unit} × {d.reps || '—'} reps
+                            </span>
+                          </div>
+                        ))}
+                        {editing && (s.drops?.length ?? 0) < 5 && (
+                          <div className={styles.addDropRow}>
+                            <button className={styles.addDropBtn} onClick={() => addDropToSet(i, si)}>+ Drop</button>
+                          </div>
+                        )}
+                      </Fragment>
                     ))}
                   </div>
                 );
