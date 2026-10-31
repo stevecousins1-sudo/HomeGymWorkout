@@ -701,6 +701,7 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
     const lastW    = last?.weight ? convertWeight(last.weight, lastData.unit, unit) : null;
 
     const drops        = isWarmup ? [] : set.drops ?? [];
+    const isCurrent    = !isWarmup && ex.sets.findIndex(x => !x.done) === setIdx;
     const canRemove    = isWarmup ? true : ex.sets.length > 1;
     const isFlash      = !isWarmup && flashSet === key;
     const isLocked     = lockedSwipe === key;
@@ -799,30 +800,34 @@ export default function WorkoutOverlay({ workoutName, dayName, exercises: exerci
             </div>
           );
         })}
-        {!isWarmup && (set.done || drops.length < MAX_DROPS) && (
-          <div className={set.done ? styles.rpeBar : styles.extrasBar}>
-            {set.done && (
-              <>
-                <span className={styles.rpeLabel}>RPE</span>
-                {[6, 7, 8, 9, 10].map(r => {
-                  const color = r <= 7 ? 'var(--green)' : r <= 9 ? 'var(--amber)' : 'var(--red)';
-                  return (
-                    <button
-                      key={r}
-                      className={`${styles.rpeBtn}${set.rpe === r ? ' ' + styles.rpeBtnActive : ''}`}
-                      style={set.rpe === r ? { background: color, borderColor: color } : {}}
-                      onClick={() => updateRPE(exIdx, setIdx, set.rpe === r ? undefined : r)}
-                    >
-                      {r}
-                    </button>
-                  );
-                })}
-              </>
-            )}
+        {!isWarmup && set.done && (
+          <div className={styles.rpeBar}>
+            <span className={styles.rpeLabel}>RPE</span>
+            {[6, 7, 8, 9, 10].map(r => {
+              const color = r <= 7 ? 'var(--green)' : r <= 9 ? 'var(--amber)' : 'var(--red)';
+              return (
+                <button
+                  key={r}
+                  className={`${styles.rpeBtn}${set.rpe === r ? ' ' + styles.rpeBtnActive : ''}`}
+                  style={set.rpe === r ? { background: color, borderColor: color } : {}}
+                  onClick={() => updateRPE(exIdx, setIdx, set.rpe === r ? undefined : r)}
+                >
+                  {r}
+                </button>
+              );
+            })}
             {drops.length < MAX_DROPS && (
               <button className={styles.addDropBtn} onClick={() => addDrop(exIdx, setIdx)}>+ Drop</button>
             )}
           </div>
+        )}
+        {/* Offered only where it's about to be useful — the set being worked on,
+            or one already carrying drops — so a long exercise isn't a column
+            of identical buttons. Ticked sets get it in their RPE bar instead. */}
+        {!isWarmup && !set.done && drops.length < MAX_DROPS && (isCurrent || drops.length > 0) && (
+          <button className={styles.addDropRow} onClick={() => addDrop(exIdx, setIdx)}>
+            ↓ {drops.length > 0 ? 'Add another drop' : 'Add drop'}
+          </button>
         )}
       </Fragment>
     );

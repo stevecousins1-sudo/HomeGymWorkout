@@ -979,12 +979,17 @@
   justify-content: center;
 }
 
-/* Sits under a set that hasn't been ticked yet, so keep it out of the way. */
-.extrasBar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 14px 4px;
+/* A quiet text link, not a boxed button: it can sit under the current set
+   without competing with the inputs above it. */
+.addDropRow {
+  display: block;
+  width: 100%;
+  padding: 7px 14px 8px;
   background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
 }
 
 .addDropBtn {

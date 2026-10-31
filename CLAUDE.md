@@ -123,7 +123,11 @@ templates, unit and rest preferences — hangs off `useApp()`.
   `cleanDrops()` before saving. Drops are deliberately excluded from e1RM,
   records and progression: they are fatigued reps at a lighter weight and
   would inflate every estimate. A unit toggle must convert drop weights too.
-  No schema change — `exercises` is JSONB.
+  No schema change — `exercises` is JSONB. The workout screen offers "Add drop"
+  only on an exercise's current (first unticked) set, any set already carrying
+  drops, and in a ticked set's RPE bar — the set row has no spare width at 375px
+  (a long last-session hint leaves ~5px), and a button per set made a long
+  exercise a column of identical pills.
 - **In-progress workouts** are snapshotted to localStorage (`src/lib/draft.js`)
   because iOS evicts backgrounded PWAs without warning.
 - **Timers** must count off a wall-clock deadline, never by decrementing on an
